@@ -6,7 +6,7 @@ Readers of the book would progressing develop the tool as they read the book (mo
 
 There are two different versions of the tool: the ZX81 version (which is also suitable for a ZX80 with the updated 8K ROM) is the focus. Those wishing to type in the 4K ROM version need to make adjustments to the code as listed and, when I tried to do this, I found some problems.
 
-In 2011, [Thunor](https://www.google.com/url?sa=t&rct=j&q=&esrc=s&source=web&cd=&cad=rja&uact=8&ved=2ahUKEwifh9-X38X4AhUMKcAKHYa7AeYQFnoECAIQAQ&url=http%3A%2F%2Fwww.users.waitrose.com%2F~thunor%2Fmmcoyzx81%2Findex.html&usg=AOvVaw2u-jWVQsJL5syJxuSnPI1U) published their attempt to create a 4K ROM version of HEXLD3, following the Toni's guidelines. They noted similar problems to me and proposed fixes. Thunor's notes were incredibly useful and I have built on these. Thunor's 4K ROM version mostly works though I found some minor issues, which I have attempted to fix.
+In 2011, Thunor published a 4K ROM version, including some of the changes that they needed to make to get it to work and this was incredibly useful and I have built on this. Thunor's 4K ROM version mostly works though I found some minor issues, which I have attempted to fix.
 
 Moving forward, I plan to make some further improvements and extensions to HEXLD3, as follows:
 
