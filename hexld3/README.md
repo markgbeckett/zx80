@@ -33,13 +33,13 @@ To run the program:
 1. type LOAD (emulator) or LOAD "HEXLD3" (ZXpand).
 2. If you have an in-progress project, type 'GOTO 500' to reinstate it in memory.
 3. Use the following commands for different functions:
-  1. RUN or RUN 50 to list code.
-  2. RUN 100 to write code.
-  3. RUN 200 to insert new code between existing code.
-  4. RUN 300 to delete a block of code
-  5. RUN 400 to save HEXLD3 and your code.
-  6. GOTO 500 to restore your code (immediately after loading).
-  7. RUN 700 to see the location and length of your code
-  8. RUN 800 to start a new project.
+    1. RUN or RUN 50 to list code.
+    2. RUN 100 to write code.
+    3. RUN 200 to insert new code between existing code.
+    4. RUN 300 to delete a block of code
+    5. RUN 400 to save HEXLD3 and your code.
+    6. GOTO 500 to restore your code (immediately after loading).
+    7. RUN 700 to see the location and length of your code
+    8. RUN 800 to start a new project.
 
 Have fun!
