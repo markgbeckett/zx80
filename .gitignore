@@ -1,0 +1,8 @@
+
+*.asm~
+*.bin
+*.z81
+hexld3/hexld3_line1_symbols.asm
+hexld3/hexld3_line2_symbols.asm
+hexld3/hexld3_line3_symbols.asm
+hexld3/Makefile~
