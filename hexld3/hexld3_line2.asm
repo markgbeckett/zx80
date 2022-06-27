@@ -121,4 +121,55 @@ DELETE:	ld hl,(LIMIT)
 	ld (LIMIT),de
 	rst 0x08
 	db 0x08
+
+SHPRINT:
+	push af
+	
+	xor a
+	call APRINT
+
+	pop af
+	call HPRINT
+
+	ret
+	
+REGS:	push af
+	call HPRINT
+	
+	ld a,b
+	call SHPRINT
+
+	ld a,c
+	call HPRINT
+
+	ld a,d
+	call SHPRINT
+
+	ld a,e
+	call HPRINT
+
+	ld a,h
+	call SHPRINT
+
+	ld a,l
+	call HPRINT
+
+	xor a
+	call APRINT
+	
+	pop af
+
+	ld a, 56
+	call m, APRINT
+
+	ld a, 63
+	call z, APRINT
+
+	ld a, 53
+	call pe, APRINT
+
+	ld a, 40
+	call c, APRINT
+
+	ret
 	
