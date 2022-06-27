@@ -98,6 +98,20 @@ INITIALISE:
 	ret
 
 PRINTSTATS:
+	ld hl, MDF_END
+	call PRINTSTRING
+	
+	ld hl,(0x4010)
+	ld a,h			; Print address
+	call HPRINT
+
+	ld a,l
+	call HPRINT
+
+	ld a,0x75
+	inc a
+	call APRINT
+	
 	ld hl, MBEGIN
 	call PRINTSTRING
 	
@@ -127,20 +141,6 @@ PRINTSTATS:
 	inc a
 	call APRINT
 	
-	ld hl, MADDRESS
-	call PRINTSTRING
-	
-	ld hl,(ADDRESS)
-	ld a,h			; Print address
-	call HPRINT
-
-	ld a,l
-	call HPRINT
-
-	ld a,0x75
-	inc a
-	call APRINT
-	
 	ret
 
 PRINTSTRING:
@@ -156,6 +156,6 @@ PRINTSTRING:
 
 END:	
 
+MDF_END:  db 41, 43, 18, 42, 51, 41, 00, 00, 00, 255
 MBEGIN:	  db 39, 42, 44, 46, 51, 14, 00, 00, 00, 255
-MADDRESS: db 38, 41, 41, 55, 42, 56, 56, 14, 00, 255
 MLIMIT:	  db 49, 46, 50, 46, 57, 14, 00, 00, 00, 255
