@@ -2,6 +2,8 @@
 PRPOS:	equ 0x06E0		
 PRINT:	equ 0x0720
 VARS:	equ 0x4008
+FRAMES:	equ 16414
+	
 
 	;; Main program
 	org 0x402B 		; REM statement at beginning of BASIC
@@ -26,6 +28,14 @@ APRINT:	push hl			; Save HL
 
 	ret
 
+SHPRINT:
+	push af
+	
+	xor a
+	call APRINT
+
+	pop af
+
 HPRINT:	push af 		; Store A for later use
 	and 0xF0		; Isolate first digitset
 	rra			; Move into lower nibble
@@ -42,6 +52,18 @@ HPRINT:	push af 		; Store A for later use
 
 	ret
 	
+ICHECK:	ld hl,(FRAMES)
+	ld bc, 0x0AAA
+I_LOOP:	dec bc
+	ld a,b
+	or c
+	jr nz, I_LOOP
+
+	ld a,(FRAMES)
+	cp l
+
+	ret
+
 HLIST:	ld hl,(LIMIT) 		; Copy LIMIT value to ADD2
 	ld (ADD2),hl
 
