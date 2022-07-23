@@ -2,6 +2,8 @@
 PRPOS:	equ 0x06E0		
 PRINT:	equ 0x0720
 VARS:	equ 0x4008
+FRAMES:	equ 16414
+	
 
 	;; Main program
 	org 0x402B 		; REM statement at beginning of BASIC
@@ -26,6 +28,14 @@ APRINT:	push hl			; Save HL
 
 	ret
 
+SHPRINT:
+	push af
+	
+	xor a
+	call APRINT
+
+	pop af
+
 HPRINT:	push af 		; Store A for later use
 	and 0xF0		; Isolate first digitset
 	rra			; Move into lower nibble
@@ -42,6 +52,18 @@ HPRINT:	push af 		; Store A for later use
 
 	ret
 	
+ICHECK:	ld hl,(FRAMES)
+	ld bc, 0x0AAA
+I_LOOP:	dec bc
+	ld a,b
+	or c
+	jr nz, I_LOOP
+
+	ld a,(FRAMES)
+	cp l
+
+	ret
+
 HLIST:	ld hl,(LIMIT) 		; Copy LIMIT value to ADD2
 	ld (ADD2),hl
 
@@ -61,11 +83,8 @@ NXTAD:	and a			; Check that ADDRESS is less than LIMIT
 	ld a,l
 	call HPRINT
 
-	xor a			; Print space
-	call APRINT
-
-	ld a,(hl)		; Print contents of ADDRESS
-	call HPRINT
+	ld a,(hl)		; Print space plus contents of ADDRESS
+	call SHPRINT
 
 	ld a,(hl)
 	bit 6,a			; Check if contents is printable character
@@ -156,6 +175,6 @@ PRINTSTRING:
 
 END:	
 
-MDF_END:  db 41, 43, 18, 42, 51, 41, 00, 00, 00, 255
-MBEGIN:	  db 39, 42, 44, 46, 51, 14, 00, 00, 00, 255
-MLIMIT:	  db 49, 46, 50, 46, 57, 14, 00, 00, 00, 255
+MDF_END:  db 41, 43, 18, 42, 51, 41, 00, 255
+MBEGIN:	  db 39, 42, 44, 46, 51, 00, 00, 255
+MLIMIT:	  db 49, 46, 50, 46, 57, 00, 00, 255

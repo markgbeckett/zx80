@@ -122,17 +122,6 @@ DELETE:	ld hl,(LIMIT)
 	rst 0x08
 	db 0x08
 
-SHPRINT:
-	push af
-	
-	xor a
-	call APRINT
-
-	pop af
-	call HPRINT
-
-	ret
-	
 REGS:	push af
 	call HPRINT
 	
@@ -159,17 +148,26 @@ REGS:	push af
 	
 	pop af
 
+	push af
+
 	ld a, 56
 	call m, APRINT
+
+	pop af	
+	push af
 
 	ld a, 63
 	call z, APRINT
 
+	pop af	
+	push af
+
 	ld a, 53
 	call pe, APRINT
+
+	pop af	
 
 	ld a, 40
 	call c, APRINT
 
 	ret
-	
