@@ -15,13 +15,13 @@ Most notably, I have moved the HEXLD3 (subject) code into REM statements at the 
 - It means there is more space for your own machine code (as it stands, you can only save 512 bytes of code and that previously included the HEXLD3 code).
 
 There are a small number of drawbacks, however:
-- You must never list Lines 1, 2, or 3 of the program, as they will likely crash the computer. Using `POKE 16403, 10` reduces the risk of this happening.
+- You must never list Lines 1, 2, 3, or 4 of the program, as they will likely crash the computer. Using `POKE 16403, 10` reduces the risk of this happening.
 - When relocating the code into the REM statements, I needed to remove any code that assembled to 0x76, as this is the end-of-line code for 4K BASIC.
 
-Moving forward, I plan to make some further improvements and extensions to HEXLD3, as follows:
+Moving forward, I may make some further improvements and extensions to HEXLD3, as follows:
 
 - [x] Add the improved code-listing capability, which is described by Toni Baker as "level 2" disassembly.
-- [ ] Add features from, later, ZX Spectrum version of HEXLD3 -- including support for adding text and for creating a breakpoint.
+- [x] Add breakpoint routine from the ZX Spectrum version of HEXLD3, which Toni developed later on.
 - [ ] Port the full disassembler from the ZX Spectrum version of the book.
 
 ## Usage
@@ -54,4 +54,3 @@ Notes:
 - The user is responsible for memory management. You need to ensure you do not write code to somewhere you should not (e.g., inside the BASIC workspace) and, if you extend the BASIC program, that it does not grow to overlap with your machine code.
 - Unlike for Toni's original version of the program, you do not need type `GOTO 500` when you load the program unless you have pre-existing machine code. Because HEXLD3 is stored in REM statements, it is immediately available for use.
 - I have (so far) added two extra routines. You can see the location and extent of your machine code, using `RUN 700`. This should help you to keep track of memory usage. You can start a new project, using `RUN 800` and then entering the start address (e.g., "org" address) for your new code. This will reset HEXLD3 variables, so it can no longer see any preexisting code you have written.
-
