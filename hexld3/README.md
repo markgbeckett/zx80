@@ -48,9 +48,22 @@ Full details of how to use the program are provided in Toni's book. In summary, 
 
 Have fun!
 
+## Demo -- Life
+
+The tape image [life.o](life.o) contains a ZX80 version of the program Life, from Toni's book (see Chapter 12). To use the program, do the following:
+
+1. Open the tape archive file  [life.o](life.o) in your emulator.
+2. Type `LOAD` to load the program.
+3. Type `GOTO 500`, to load the machine code back into memory.
+4. Type `RUN 1000` to run the program. Between each iteration, the program will wait for keyboard input. Simply type Enter to run next iteration.
+
+The program was assembled to address 0x4A00 in memory. You can see the extent of the program, by typing `RUN 700` or list the program by typing `RUN 50` and setting the start address to (for example) 0x4A00. The listing is produced one screen at a time: enter CONTINUE to see subsequent screens.
+
+You will see, from Toni's book, that the program contains two routines and some program data. The START routines starts at 0x4A08 and the NEXGEN routine starts at 0x4A34.  
+
 Notes:
 
-- The program is unforgiving and has almost no error checking. Inputs are typically four-digit hex numbers for addresses, or sequences of one or more two-digit hex numbers for data. The validity of inputs is not checked: the code will naively convert your input into numerical data as best as it can.
+- The program HEXLD3 is unforgiving and has almost no error checking. Inputs are typically four-digit hex numbers for addresses, or sequences of one or more two-digit hex numbers for data. The validity of inputs is not checked: the code will naively convert your input into numerical data as best as it can.
 - The user is responsible for memory management. You need to ensure you do not write code to somewhere you should not (e.g., inside the BASIC workspace) and, if you extend the BASIC program, that it does not grow to overlap with your machine code.
 - Unlike for Toni's original version of the program, you do not need type `GOTO 500` when you load the program unless you have pre-existing machine code. Because HEXLD3 is stored in REM statements, it is immediately available for use.
 - I have (so far) added two extra routines. You can see the location and extent of your machine code, using `RUN 700`. This should help you to keep track of memory usage. You can start a new project, using `RUN 800` and then entering the start address (e.g., "org" address) for your new code. This will reset HEXLD3 variables, so it can no longer see any preexisting code you have written.
