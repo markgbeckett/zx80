@@ -11,11 +11,11 @@ To use the program:
 3. Enter the size of the system to be solved
 4. Enter the system row by row (including the right-hand side)
 5. Check the system has been entered correctly: enter `Y` to confirm or `N` to reenter
-6. The computer will solve the system (assuming it is solveable).
+6. The computer will solve the system (assuming it is solveable)
 
-Example: if four apples and four oranges cost £3.60 and two apples and 10 oranges cost £5.80, how much does each apple and each orange cost?
+**Example:** if four apples and four oranges cost £3.60 and two apples and 10 oranges cost £5.80, how much does each apple and each orange cost?
 
-Solution: Convert the problem to a linear system:
+**Solution:** Convert the problem to a linear system:
 
 ```
 4.x + 4.y = 360
@@ -36,4 +36,4 @@ This can be represented in matrix form as:
 
 This can be entered into the ZX80 (or ZX81) and solved as shown in the screenshots.
 
-![Enter system](linalg_1.png) ![Check system](linalg_1.png)![Solve problem](linalg_2.png)
+![Enter system](linalg_0.png) ![Check system](linalg_1.png)![Solve problem](linalg_2.png)
