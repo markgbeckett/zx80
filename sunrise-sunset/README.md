@@ -4,4 +4,4 @@ BASIC program for the ZX80 or Minstrel 2 (with 8K ROM) to calculate the sunrise 
 
 The program requires at least 4K of RAM to run.
 
-The program is adapted from a BBC Micro listing on the Internet. Sadly, I do not have the details of the original author. If you have any information, please let me know.
+The program is adapted from a BBC Micro listing created by R.G. Stuart of Mexico City, Mexico, and published in Sky and Telescope magazine (Sinnott, Roger W. "Sunrise Sunset Challenge: The Winners." Sky and telescope 89.3 (1995): 84-. Print).
