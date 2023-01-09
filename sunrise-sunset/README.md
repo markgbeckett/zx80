@@ -6,6 +6,8 @@ The program requires at least 4K of RAM to run.
 
 Once loaded (or typed in), type `RUN` and enter required information in response to the prompts.
 
+![Sample run](sunrise-sunset.png)
+
 The program takes around 12 seconds to compute the sunrise and sunset times for a one-week period from the date specified. As is normal for the ZX80, the screen is not updated while the calculation is in progress.
 
 Notes:
