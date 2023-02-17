@@ -34,12 +34,37 @@ MAIN_LOOP:
 	in a, (0xFE)		; Turn on vertical sync generator
 
 	;; Game code (max of 1360 T states)
-	ld b,0x68		; (7)
+	;; T = 1287 + WAIT
 
-WAIT:	djnz WAIT		; (13/8)
+	;; Pick row number - 0...15
+	call RAND		; (17+81)
+	and 0x0F		; (7)
+	ld b,a			; (4)
 
-	;; Generate display
+	;; Pick column number - 0 -- 25
+	call RAND		; (17+81)
+
+	;; Divide by 10 (takes 89 T states)
+	ld d,0			; (7)
+	ld e,a			; (4)
+	ld h,d			; (4)
+	ld l,e			; (4)
+	add hl,hl		; (11)
+	add hl,de		; (11)
+	add hl,hl		; (11)
+	add hl,hl		; (11)
+	add hl,de		; (11)
+	add hl,hl		; (11)
+	ld c,h			; (4)
 	
+	call FLIP9		; (17 + 974)
+	
+	;; T = 4 + 7 + 8 + 13*(N-1)
+	nop
+	ld b,0x05		; (7)
+LOOP:	djnz LOOP		;
+	
+	;; Generate display
 	out (0xFE),a		; Turn off vertical sync generation
 
 	ld a, 0xEC
@@ -68,15 +93,79 @@ WAIT:	djnz WAIT		; (13/8)
 	;; 	a  - random number
 	;;	de - corrupted
 	;; 	hl - corrupted
-RAND:	ld hl,(SEED)
+	;;
+	;; Timing: 81 T-states
+RAND:	ld hl,(SEED)		; (16)
 
-	ld a,r
-	ld d,a
-	ld e,(HL)
-	add hl,de
-	add a,l
-	xor h
+	ld a,r			; (9)
+	ld d,a			; (4)
+	ld e,(HL)		; (7)
+	add hl,de		; (11)
+	add a,l			; (4)
+	xor h			; (4)
 	
-	ld (SEED),hl
+	ld (SEED),hl		; (16)
 
-	ret
+	ret			; (10)
+
+SEED:	dw 0x0000
+
+	;;
+	;; Flip a 3x3 block of tiles
+	;;
+	;; On entry:
+	;;      b  - row number (0...15)
+	;;      c  - column number (0...25)
+	;; On exit:
+	;; 	a  - corrupted
+	;;      be - corrupted
+	;;	de - corrupted
+	;; 	hl - corrupted
+	;;
+	;; Timing:
+	;; T states = 974
+FLIP9:	ld hl,DISPLAY+3		; (10) Top, lefthand cormer of gameboard
+	ld de, 0x0021		; (10) Length of a screen row
+
+	ld a,16			; (7)
+	sub b			; (8) a = 1...16
+
+	;; Step down to correct row
+	;; T = 4 + 19 + (B-1)x24 = 23 ... 383
+	inc b			; (4) Row 1...16
+NROW:	add hl,de		; (11)
+	djnz NROW		; (13/8)
+
+	;; Dummy routine to balance timing
+	;; T = 4 + 19 + (A-1)x24 = 23...383
+	ld b,a			; (4)
+DROW:	and a			; (4)
+	and 0xFF		; (7)
+	djnz DROW		; (13/8)
+	
+	;; Remainder of routine = 533 T-states, inc. RET
+	;; Step along row
+	add hl,bc		; (11) B is zero thanks to previous loop
+
+	ld c,3			; (7) Three rows in block
+	
+	;; T = 170*2+165 = 505
+COL3:	ld b,3			; (7)
+
+	push hl			; (11)
+
+	;; T = 40x2+35 = 115
+ROW3:	ld a,(hl)		; (7) Invert three tiles on current row
+	xor _ASTERISK		; (7)
+	ld (hl),a		; (7)
+	inc hl			; (6)
+	djnz ROW3		; (13/8)
+
+	pop hl			; (10)
+
+	add hl,de		; (11) Next row
+
+	dec c			; (4)
+	jr nz, COL3		; (12/7)
+
+	ret			; (10)
