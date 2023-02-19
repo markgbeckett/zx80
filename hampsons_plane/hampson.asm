@@ -85,8 +85,9 @@ JUMP_TO_IT:
 	jp (hl)			; (4)
 
 JUMP_TABLE:
-	dw FLIP_TILE		; 1240 T states
-	dw GETNUM		; 1240 T states
+	dw NEW_GAME		; 1244 T states
+	dw FLIP_TILE		; 1287 T states
+	dw IDLE			; 1240 T states
 
 ROW:	dw 0x0000
 	
@@ -322,6 +323,79 @@ NO_7:	cp 0x6F			; (7)
 
 NO_6:	ret			; (10)
 	
+	;;
+	;; Start new game
+	;; Usually 1,287 T states (aim for 1,283)
+NEW_GAME:
+	;; 613 T states
+	ld hl, SKILL_MSG	; (10)
+	ld bc, 0x001D		; (10)
+	ld de, DISPLAY+21*33+1	; (10)
+	ldir			; ( = 21*27+16)
+
+	;; 268...270 T states
+	call READNUM		; (17+251...253)
+
+	;; 32/23/37 T-states (balanced by NO_NUM)
+	ld a,d			; (4)
+	cp 0x01			; (7)
+	jr c, NO_NUM		; (12/7)
+	cp 0x0A			; (7)
+	jr nc, NO_NUM_2		; (12/7)
+
+	;; 350 T-states + return
+	ld b,a			; (4)
+	add a,_0 		; (7)
+	ld (DISPLAY+21*33+27),a ; (13)
+	ld a,b			; (4)
+	
+	ld hl, 0x0000		; (10)
+	ld de, 100		; (10)
+
+	;; 19 + (N-1)*24 = 19 ... 211
+N_ADD:	add hl,de		; (11)
+	djnz N_ADD		; (13/8)
+
+	ld (ROW),hl		; (16)
+	
+	ld b,a			; (4)
+	ld a,0x0a		; (7)
+	sub b			; (4)
+	ld b,a			; (4)
+
+	;; 19 + (N-1)*24 = 19 ... 139
+N_DUMMY:
+	add hl,de		; (11)
+	djnz N_DUMMY		; (13/8)
+
+	;; 48 T-states
+	pop de			; (10)
+	pop hl			; (10)
+	inc hl			; (6)
+	push hl			; (11)
+	push de			; (11)
+	
+	ret 			; (10)
+
+NO_NUM:	add a,0x00		; (7)
+	add a,0x00		; (7)
+
+	;; 344 T-states (aim for 345 T-states) + ret
+	;; 
+NO_NUM_2:
+	nop			; (4)
+	ld b,0x1A		; (7)
+NN_LOOP:
+	djnz NN_LOOP		; (13/8)
+
+	ret			; (10)
+	
+SKILL_MSG:
+	db _SPACE, _C, _H, _O, _O, _S, _E, _SPACE
+	db _S, _K, _I, _L, _L, _SPACE, _L, _E
+	db _V, _E, _L, _SPACE, _LEFTPARENTH, _1, _MINUS, _9
+	db _RIGHTPARENTH, _SPACE, _SPACE, _SPACE, _SPACE, _SPACE, _SPACE, _SPACE
+
 
 ;; 	;;
 ;; 	;; Read keyboard

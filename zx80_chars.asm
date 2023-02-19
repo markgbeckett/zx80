@@ -16,7 +16,7 @@ _DOLLAR:		equ $0D
 _COLON:			equ $0E
 _QUESTION:		equ $0F
 _LEFTPARENTH:		equ $10
-_RIGHTPARETH:		equ $11
+_RIGHTPARENTH:		equ $11
 _MINUS:			equ $12
 _PLUS:			equ $13
 _ASTERISK:		equ $14
