@@ -43,10 +43,9 @@ MAIN_LOOP:
 	pop hl 			; (10)
 	push hl			; (11)
 	
-	in a, (0xFE)		; Turn on vertical sync generator
+V_ON:	in a, (0xFE)		; Turn on vertical sync generator
 
 	;; Game code (max of 1360 T states)
-V_ON:
 	;; Jump to correct routine (77 T states + routine cost)	
 	add hl,hl		; (11) Multiple by 2
 	ld de, JUMP_TABLE	; (10)
@@ -87,8 +86,12 @@ JUMP_TO_IT:
 JUMP_TABLE:
 	dw NEW_GAME		; 1244 T states
 	dw FLIP_TILE		; 1287 T states
+	dw REQ_COORD		; 1283 T states
+	dw GET_COL		; 1283--1287 T states
 	dw IDLE			; 1240 T states
-
+	;; GET COL FOLLOWED BY ROW
+	;; CHECK IF SOLVED
+	
 ROW:	dw 0x0000
 	
 	;;
@@ -277,6 +280,184 @@ ROW3:	ld a,(hl)		; (7) Invert three tiles on current row
 	ret			; (10)
 END:	
 
+	;;
+	;; Request coordinate
+	;; 
+REQ_COORD:	
+	;; 613 T states
+	ld hl, COORD_MSG	; (10)
+	ld bc, 0x001D		; (10)
+	ld de, DISPLAY+21*33+1	; (10)
+	ldir			; ( = 21*27+16)
+
+	pop de			; (10)
+	pop hl			; (10)
+	inc hl			; (6)
+	push hl			; (11)
+	push de			; (11)
+	
+	ld b, 0x2D		; (7)
+RLOOP:	djnz RLOOP		; (13/8)
+	
+DONE:	ret			; (10)
+
+COORD_MSG:
+	db _SPACE, _E, _N, _T, _E, _R, _SPACE, _M
+	db _O, _V, _E, _S, _SPACE, _LEFTPARENTH, _C, _O
+	db _L, _SPACE, _F, _I, _R, _S, _T, _RIGHTPARENTH
+	db _SPACE, _SPACE, _SPACE, _SPACE, _SPACE, _SPACE, _SPACE, _SPACE
+
+
+	;;
+	;; Read letter
+	;;
+	;; 763 + ??? T-states (aim for 1,283 T states)
+GET_COL:
+	;; 589--591 T-states
+	ld d, 0xFF		; (7)
+	
+	ld bc, 0xFBFE		; (10)
+	in a,(c)		; (12)
+
+	cp 0x7E			; (7)
+	jr nz, NO_Q		; (12/7)
+	ld d, _Q		; (7)
+NO_Q:	cp 0x7D			; (7)
+	jr nz, NO_W		; (12/7)
+	ld d, _W		; (7)
+NO_W:	cp 0x7B			; (7)
+	jr nz, NO_E		; (12/7)
+	ld d, _E		; (7)
+NO_E:	cp 0x77			; (7)
+	jr nz, NO_R		; (12/7)
+	ld d, _R		; (7)
+NO_R:	cp 0x6F			; (7)
+	jr nz, NO_T		; (12/7)
+	ld d, _T		; (7)
+
+NO_T:	ld bc, 0xDFFE		; (10)
+	in a,(c)		; (12)
+
+	cp 0x7E			; (7)
+	jr nz, NO_P		; (12/7)
+	ld d, _P		; (7)
+NO_P:	cp 0x7D			; (7)
+	jr nz, NO_O		; (12/7)
+	ld d, _O		; (7)
+NO_O:	cp 0x7B			; (7)
+	jr nz, NO_I		; (12/7)
+	ld d, _I		; (7)
+NO_I:	cp 0x77			; (7)
+	jr nz, NO_U		; (12/7)
+	ld d, _U		; (7)
+NO_U:	cp 0x6F			; (7)
+	jr nz, NO_Y		; (12/7)
+	ld d, _Y		; (7)
+
+NO_Y:	ld bc, 0xFDFE		; (10)
+	in a,(c)		; (12)
+
+	cp 0x7E			; (7)
+	jr nz, NO_A		; (12/7)
+	ld d, _A		; (7)
+NO_A:	cp 0x7D			; (7)
+	jr nz, NO_S		; (12/7)
+	ld d, _S		; (7)
+NO_S:	cp 0x7B			; (7)
+	jr nz, NO_D		; (12/7)
+	ld d, _D		; (7)
+NO_D:	cp 0x77			; (7)
+	jr nz, NO_F		; (12/7)
+	ld d, _F		; (7)
+NO_F:	cp 0x6F			; (7)
+	jr nz, NO_G		; (12/7)
+	ld d, _G		; (7)
+
+NO_G:	ld bc, 0xBFFE		; (10)
+	in a,(c)		; (12)
+
+	cp 0x7E			; (7)
+	jr nz, NO_ENT		; (12/7)
+	ld d, 0xFF		; (7)
+NO_ENT:	cp 0x7D			; (7)
+	jr nz, NO_L		; (12/7)
+	ld d, _L		; (7)
+NO_L:	cp 0x7B			; (7)
+	jr nz, NO_K		; (12/7)
+	ld d, _K		; (7)
+NO_K:	cp 0x77			; (7)
+	jr nz, NO_J		; (12/7)
+	ld d, _J		; (7)
+NO_J:	cp 0x6F			; (7)
+	jr nz, NO_H		; (12/7)
+	ld d, _H		; (7)
+
+NO_H:	ld bc, 0xFEFE		; (10)
+	in a,(c)		; (12)
+
+	cp 0x7E			; (7)
+	jr nz, NO_SH		; (12/7)
+	ld d, 0xFF			; (7)
+NO_SH:	cp 0x7D			; (7)
+	jr nz, NO_Z		; (12/7)
+	ld d, _Z		; (7)
+NO_Z:	cp 0x7B			; (7)
+	jr nz, NO_X		; (12/7)
+	ld d, _X		; (7)
+NO_X:	cp 0x77			; (7)
+	jr nz, NO_C		; (12/7)
+	ld d, _C		; (7)
+NO_C:	cp 0x6F			; (7)
+	jr nz, NO_V		; (12/7)
+	ld d, _V		; (7)
+
+NO_V:	ld bc, 0x7FFE		; (10)
+	in a,(c)		; (12)
+
+	cp 0x7E			; (7)
+	jr nz, NO_SP		; (12/7)
+	ld d, 0xFF			; (7)
+NO_SP:	cp 0x7D			; (7)
+	jr nz, NO_DOT		; (12/7)
+	ld d, 0xFF		; (7)
+NO_DOT:	cp 0x7B			; (7)
+	jr nz, NO_M		; (12/7)
+	ld d, _M		; (7)
+NO_M:	cp 0x77			; (7)
+	jr nz, NO_N		; (12/7)
+	ld d, _N		; (7)
+NO_N:	cp 0x6F			; (7)
+	jr nz, NO_B		; (12/7)
+	ld d, _B		; (7)
+
+NO_B:	ld hl, DISPLAY+33*21+26	; (10)
+	ld a,d			; (4)
+	cp 0xFF			; (7)
+	jr z, NO_KEY_PRESSED	; (12/7)
+	ld (hl),a		; (7)
+
+	sub a, _9		; (7)
+	ld (ROW),a		; (13)
+	
+	pop de			; (10)
+	pop hl			; (10)
+	inc hl			; (6)
+	push hl			; (11)
+	push de			; (11)
+
+	jr KEY_PRESSED		; (7)
+	
+NO_KEY_PRESSED:	
+	ld b, 0x06		; (7)
+KLOOP:	djnz KLOOP		; (13/8)
+
+KEY_PRESSED:	
+	;; 7 + 8 +(N-1)*13
+	ld b, 0x23		; (7)
+KLOOP2:	djnz KLOOP2		; (13/8)
+	
+	ret			; (10)
+	
 	;;
 	;; Read number
 	;;
