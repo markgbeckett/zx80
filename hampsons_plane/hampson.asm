@@ -92,7 +92,8 @@ JUMP_TO_IT:
 
 JUMP_TABLE:
 	dw NEW_GAME		; 1244 T states
-	dw FLIP_TILE		; 1287 T states
+	dw FLIP_TILE_1		; ??? T states
+	dw FLIP_TILE_2		; ??? T states
 	dw REQ_COORD		; 1283 T states
 	dw GET_COL		; 1283--1287 T states
 	dw WAIT_NO_KEY		;
@@ -102,8 +103,9 @@ JUMP_TABLE:
 	dw FLIP_IT		;
 	dw IDLE			; 1240 T states
 
-COORD:	dw 0x0000
-	
+COORD:	dw 0x0000		; User-specified coordinate (or temp.
+	                        ; store for address during grid init)
+COUNT:	dw 0x000		; Counter for randomising initial grid
 	;; ----------------------------------------------------------------
 	;; Start new game
 	;; ----------------------------------------------------------------
@@ -147,7 +149,7 @@ N_ADD:	add hl,de		; (11)
 
 	;; Store iteration count for new step (use COORD to avoid
 	;; wasting memory)
-	ld (COORD),hl		; (16)
+	ld (COUNT),hl		; (16)
 
 	;; Idle loop to ensure consisten runtime
 	ld b,a			; (4)
@@ -191,15 +193,25 @@ SKILL_MSG:
 	db _RIGHTPARENTH, _SPACE, _SPACE, _SPACE, _SPACE, _SPACE, _SPACE, _SPACE
 
 	;; ----------------------------------------------------------------
-	;; Generate game board (1-iter)
+	;; Generate game board (1-iter), Part 1
 	;; ----------------------------------------------------------------
-	;; T = 1277 (aiming for 1,283 T states)
-FLIP_TILE:
-	;; Check if done
-	ld hl,(COORD)	       ; (16) Retrieve counter
-	dec hl		       ; (6)
-	ld (COORD),hl	       ; (16)
+	;; T = 1,283 (aiming for 1,283 T states)
+FLIP_TILE_1:
 
+
+	;; Wait (7 + 8 + 32*13 + 4 +4 = 439) to fill 
+	ld b,33
+FT_LOOP:
+	djnz FT_LOOP
+	nop			; (4)
+	nop			; (4)
+	
+	;; Decrement counter for initial randomisation of grid
+	ld hl,(COUNT)	       ; (16) Retrieve counter
+	dec hl		       ; (6)
+	ld (COUNT),hl	       ; (16)
+
+	;; Check if done
 	ld a,h			; (4)
 	or l			; (4)
 	jr z, FLIP_DONE		; (12/7)
@@ -239,24 +251,59 @@ FLIP_TILE:
 	add hl,hl		; (11)
 	ld c,h			; (4)
 
-	call COL2ADDR
-	call FLIP9		; (17 + 1257)
-	
-	ret			; (7)
+	;; Translate coordinate into address and save it
+	call COL2ADDR		; (17+458)
+	ld (COORD),hl		; (16) Store address
 
-FLIP_DONE:			; 55 + WAIT
+	;; Advanced to second stage of tile-flip
 	pop de			; (10) Return address for routine
 	pop hl			; (10) Sequence counter
 	inc hl			; (6) Next step
 	push hl			; (11) Store sequence counter
 	push de			; (11) and return address
 
+	ret			; (10)
+
+FLIP_DONE:			; 55 + WAIT
+	pop de			; (10) Return address for routine
+	pop hl			; (10) Sequence counter
+	inc hl			; (6) Next step
+	inc hl 			; (6)
+	push hl			; (11) Store sequence counter
+	push de			; (11) and return address
+
 	;; Dummy wait (T = 7 + 8 + (N-1)*13)
-	ld b, 0x59
+	ld b, 55
 FLIP_W:	djnz FLIP_W
 
-	nop			; (4)
-	nop			; (4)
+	nop			; (4) Extra instruction to balance
+	
+	ret			; (10)
+
+	;; ----------------------------------------------------------------
+	;; Generate game board (1-iter), Part 2
+	;; ----------------------------------------------------------------
+	;; T = 1,284 (aiming for 1,283 T states)
+FLIP_TILE_2:
+	;; Retrieve address from temp store
+	ld hl,(COORD)		; (16)
+
+	;; At this point, HL contains address of block to flip
+	call FLIP9		; (17 + 784)
+
+	;; Update game-step counter to point to tile-flip, part 1
+	pop de			; (10)
+	pop hl			; (10)
+	dec hl			; (6)
+	push hl			; (11)
+	push de			; (11)
+
+	;; Dummy loop to synchnronise timing
+	;; T = 7 + 8 + 30*13 + 4 = 409
+	ld b,31			; (7)
+F2_LOOP:
+	djnz F2_LOOP		; (13/8)
+	nop 			; (4)
 	
 	ret			; (10)
 
@@ -604,8 +651,8 @@ FLIP_IT:
 	ld b,(hl)		; (7)
 	dec b			; (4)
 
-	call COL2ADDR		; (17 + )
-	call FLIP9		; (17+1266)
+	call COL2ADDR		; (17 + 458)
+	call FLIP9		; (17 + 784)
 
 	pop de			; (10)
 	pop hl			; (10)
@@ -636,14 +683,15 @@ FI_LOOP:
 	;;          of 3x3 tile block
 	;;     bc,de,af - corrupted
 	;; Timing:
+	;;     458 T states
 	;; ----------------------------------------------------------------
 COL2ADDR:	
 	ld hl,DISPLAY+3		; (10) Top, lefthand cormer of gameboard
-	ld de, 0x0021		; (10) Length of a screen row
+	ld de,0x0021		; (10) Length of a screen row
 
 	;; Work out idle-time adjustment to make address calc fixed time
 	ld a,16			; (7)
-	sub b			; (8) a = 1...16
+	sub b			; (4) a = 1...16
 
 	;; Step down to correct row
 	;; T = 4 + 19 + (B-1)x24 = 23 ... 383
@@ -663,7 +711,7 @@ CA_DROW:
 	;; Step along row
 	add hl,bc		; (11) B is zero thanks to previous loop
 
-	ret
+	ret			; (10)
 
 
 	;; ----------------------------------------------------------------
@@ -681,7 +729,7 @@ CA_DROW:
 	;; 	hl - corrupted
 	;;
 	;; Timing:
-	;; T states = 1266
+	;;     784 T states
 	;; ----------------------------------------------------------------
 	
 FLIP9:	;;  Flip tiles row by row
