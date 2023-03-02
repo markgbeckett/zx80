@@ -50,7 +50,7 @@ MAIN_LOOP:
 V_ON:	in a, (0xFE)		; Turn on vertical sync generator
 
 	;; 
-	;; Game code (max of 1360 T states between V_ON and V_OFF)
+	;; Game code (max of 1,360 T states between V_ON and V_OFF)
 	;;
 	
 	;; Jump to correct routine (77 T states + routine cost)	
@@ -106,6 +106,7 @@ JUMP_TABLE:
 COORD:	dw 0x0000		; User-specified coordinate (or temp.
 	                        ; store for address during grid init)
 COUNT:	dw 0x000		; Counter for randomising initial grid
+	
 	;; ----------------------------------------------------------------
 	;; Start new game
 	;; ----------------------------------------------------------------
@@ -347,7 +348,6 @@ COORD_MSG:
 	db _SPACE, _SPACE, _SPACE, _SPACE, _SPACE, _SPACE, _SPACE, _SPACE
 
 
-
 	;; ----------------------------------------------------------------
 	;; Wait for no key
 	;; ----------------------------------------------------------------
@@ -461,6 +461,7 @@ GET_ROW_0:
 	;; Update saved coordinate
 	ld a,(COORD+1)		; (13) Restore value
 	add a,d			; (4)
+	dec a			; (4)
 	ld (COORD+1),a		; (13)
 
 	;; Print keypress
@@ -618,7 +619,7 @@ NO_B:	ld hl, DISPLAY+33*21+26	; (10)
 	jr z, NO_KEY_PRESSED	; (12/7)
 	ld (hl),a		; (7)
 
-	sub a, _9		; (7)
+	sub a, _9+1		; (7)
 	ld (COORD),a		; (13)
 	
 	pop de			; (10)
@@ -640,36 +641,38 @@ KLOOP2:	djnz KLOOP2		; (13/8)
 	
 	ret			; (10)
 	
+	;; ----------------------------------------------------------------
+	;; Flip 3x3 tile based on user-inputted coordinate (in COORD)
+	;; ----------------------------------------------------------------
+	;; On entry:
+	;;     (COORD) - user-input coordinate
+	;; On exit:
 	;;
-	;; Flip it
-	;;
+	;; Timing:
+	;;     1,387 T states
+	;; ----------------------------------------------------------------
 FLIP_IT:
+	;; Retrieve coordinate into BC
 	ld hl,COORD		; (10)
 	ld c,(hl)		; (7)
-	dec c			; (4)
 	inc hl			; (6)
 	ld b,(hl)		; (7)
-	dec b			; (4)
 
+	;; Convert coordinate to address ...
 	call COL2ADDR		; (17 + 458)
+
+	;; ... and flip tile block
 	call FLIP9		; (17 + 784)
 
+	;; Update game-step counter
 	pop de			; (10)
 	pop hl			; (10)
-	dec hl			; (6)
-	dec hl			; (6)
-	dec hl			; (6)
-	dec hl			; (6)
-	dec hl			; (6)
-	dec hl			; (6)
+	ld bc, 0x0006		; (10) 
+	and a			; (4)
+	sbc hl,bc		; (15)
 	push hl			; (11)
 	push de			; (11)
 
-	;; Pause 1283 - 1151
-	ld b,0x0B
-FI_LOOP:
-	djnz FI_LOOP
-	
 	ret			; (10)
 
 	;; ----------------------------------------------------------------
@@ -842,9 +845,9 @@ LABEL:	rlc b			; (8)
 
 	ret			; (10)
 	
-	;;
+	;; ----------------------------------------------------------------
 	;; Translate key coordinate into character
-	;;
+	;; ----------------------------------------------------------------
 	;; On entry:
 	;; B - column id from KSCAN
 	;; C - row id from KSCAN
@@ -852,6 +855,7 @@ LABEL:	rlc b			; (8)
 	;; On exit:
 	;; A - character of key pressed (or SPACE)
 	;; bc, de, hl - corrupted
+	;; ----------------------------------------------------------------
 FINDCHR:
 	;; Compute offset for lookup based on whether Shift was pressed
 	;; (indicated by bit 0 of B being reset).
