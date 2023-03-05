@@ -23,7 +23,8 @@ DISPLAY:
 	
 	;; Entry point from BASIC
 START:
-	;; Point ROM to display info
+	;; Point system variables to display info, so ROM
+	;; display-write routines work
 	ld hl, DISPLAY
 	ld (DFILE), hl
 	ld hl, DISPLAY+0x21*0x17+01
@@ -106,6 +107,7 @@ JUMP_TABLE:
 	dw RESTART_GAME		;
 	dw IDLE			; 1240 T states
 
+	;; Game variables
 COORD:	dw 0x0000		; User-specified coordinate (or temp.
 	                        ; store for address during grid init)
 COUNT:	dw 0x000		; Counter for randomising initial grid
@@ -115,10 +117,10 @@ COUNT:	dw 0x000		; Counter for randomising initial grid
 	;; ----------------------------------------------------------------
 	;; Usually 1,287 T states (aim for 1,283)
 NEW_GAME:
-	;; 613 T states
+	;; 612 T states
 	;; Print message asking user to choose difficult level
 	ld hl, SKILL_MSG	; (10)
-	ld bc, 0x001D		; (10)
+	ld bc, 0x001C		; (10)
 	ld de, DISPLAY+21*33+1	; (10)
 	ldir			; ( = 21*27+16)
 
@@ -130,9 +132,9 @@ NEW_GAME:
 	;; 32/23/37 T-states (balanced by NO_NUM)
 	ld a,d			; (4)
 	cp 0x01			; (7)
-	jr c, NO_NUM		; (12/7)
+	jr c, NG_NO_NUM		; (12/7)
 	cp 0x0A			; (7)
-	jr nc, NO_NUM_2		; (12/7)
+	jr nc, NG_NO_NUM_2		; (12/7)
 
 	;; Print input and work out how many iterations of
 	;; randomisation to do
@@ -148,23 +150,23 @@ NEW_GAME:
 	ld de, 40		; (10)
 
 	;; 19 + (N-1)*24 = 19 ... 211
-N_ADD:	add hl,de		; (11)
-	djnz N_ADD		; (13/8)
+NG_ADD:	add hl,de		; (11)
+	djnz NG_ADD		; (13/8)
 
 	;; Store iteration count for new step (use COORD to avoid
 	;; wasting memory)
 	ld (COUNT),hl		; (16)
 
-	;; Idle loop to ensure consisten runtime
+	;; Idle loop to ensure consistent runtime
 	ld b,a			; (4)
 	ld a,0x0a		; (7)
 	sub b			; (4)
 	ld b,a			; (4)
 
 	;; 19 + (N-1)*24 = 19 ... 139
-N_DUMMY:
+NG_DUMMY:
 	add hl,de		; (11)
-	djnz N_DUMMY		; (13/8)
+	djnz NG_DUMMY		; (13/8)
 
 	;; Advance to next game step (48 T-states)
 	pop de			; (10)
@@ -177,16 +179,17 @@ N_DUMMY:
 
 	;; If invalid entry, idle to complete the game iteration
 	;; and return for another input
-NO_NUM:	add a,0x00		; (7)
+NG_NO_NUM:
+	add a,0x00		; (7)
 	add a,0x00		; (7)
 
 	;; 344 T-states (aim for 345 T-states) + ret
 	;; 
-NO_NUM_2:
+NG_NO_NUM_2:
 	nop			; (4)
 	ld b,0x1A		; (7)
-NN_LOOP:
-	djnz NN_LOOP		; (13/8)
+NG_NN_LOOP:
+	djnz NG_NN_LOOP		; (13/8)
 
 	ret			; (10)
 	
@@ -200,15 +203,12 @@ SKILL_MSG:
 	;; Generate game board (1-iter), Part 1
 	;; ----------------------------------------------------------------
 	;; T = 1,283 (aiming for 1,283 T states)
+
 FLIP_TILE_1:
-
-
-	;; Wait (7 + 8 + 32*13 + 4 +4 = 439) to fill 
-	ld b,33
-FT_LOOP:
-	djnz FT_LOOP
-	nop			; (4)
-	nop			; (4)
+	;; Wait (7 + 8 + 28*13 = 379) to fill time
+	ld b,0x1D		; (7)
+F1_LOOP:
+	djnz F1_LOOP		; (13/8)
 	
 	;; Decrement counter for initial randomisation of grid
 	ld hl,(COUNT)	       ; (16) Retrieve counter
@@ -218,30 +218,16 @@ FT_LOOP:
 	;; Check if done
 	ld a,h			; (4)
 	or l			; (4)
-	jr z, FLIP_DONE		; (12/7)
+	jr z, F1_DONE		; (12/7)
 	
 	;; Pick row number - 0...15 (82 T-states)
-	ld hl,(SEED)		; (16)
-	ld a,r			; (9)
-	ld d,a			; (4)
-	ld e,(HL)		; (7)
-	add hl,de		; (11)
-	add a,l			; (4)
-	xor h			; (4)
-	ld (SEED),hl		; (16)
-	and 0x0F		; (7)
-	ld b,a			; (4)
+	call RAND 		; (17 + 81)
+	and 0x0F		; (7) Reduce to 0...15
+	ld b,a			; (4) Store in B
 
-	;; Pick column number - 0 -- 25 (71 T-states)
-	ld hl,(SEED)		; (16)
-	ld a,r			; (9)
-	ld d,a			; (4)
-	ld e,(HL)		; (7)
-	add hl,de		; (11)
-	add a,l			; (4)
-	xor h			; (4)
-	ld (SEED),hl		; (16)
-
+	;; Pick column number - 0 -- 25 (98 + 89 = 187 T states)
+	call RAND		; (17 + 81)
+	
 	;; Divide by 10 (takes 89 T states)
 	ld d,0			; (7)
 	ld e,a			; (4)
@@ -268,7 +254,9 @@ FT_LOOP:
 
 	ret			; (10)
 
-FLIP_DONE:			; 55 + WAIT
+	;; Game board is generated, though need to pad out routine to
+	;; fill V. Sync period
+F1_DONE:			; (64)
 	pop de			; (10) Return address for routine
 	pop hl			; (10) Sequence counter
 	inc hl			; (6) Next step
@@ -276,12 +264,11 @@ FLIP_DONE:			; 55 + WAIT
 	push hl			; (11) Store sequence counter
 	push de			; (11) and return address
 
-	;; Dummy wait (T = 7 + 8 + (N-1)*13)
-	ld b, 55
-FLIP_W:	djnz FLIP_W
+	;; Dummy wait (7 + 8 + 59*13 = 782)
+	ld b, 0x3C
+F1_WAIT:
+	djnz F1_WAIT
 
-	nop			; (4) Extra instruction to balance
-	
 	ret			; (10)
 
 	;; ----------------------------------------------------------------
@@ -303,8 +290,8 @@ FLIP_TILE_2:
 	push de			; (11)
 
 	;; Dummy loop to synchnronise timing
-	;; T = 7 + 8 + 30*13 + 4 = 409
-	ld b,31			; (7)
+	;; T = 7 + 8 + 29*13 + 4 = 396
+	ld b,0x1E			; (7)
 F2_LOOP:
 	djnz F2_LOOP		; (13/8)
 	nop 			; (4)
@@ -324,23 +311,26 @@ IDLE_W:	djnz IDLE_W		; (13/8)
 	ret			; (10)
 	
 	;; ----------------------------------------------------------------
-	;; Request coordinate
+	;; Print message to request coordinate
 	;; ----------------------------------------------------------------
 REQ_COORD:	
-	;; 613 T states
+	;; Copy message to row 21 of display (613)
 	ld hl, COORD_MSG	; (10)
 	ld bc, 0x001E		; (10)
 	ld de, DISPLAY+21*33+1	; (10)
 	ldir			; ( = 21*27+16)
 
+	;; Update game-sequence counter (48)
 	pop de			; (10)
 	pop hl			; (10)
 	inc hl			; (6)
 	push hl			; (11)
 	push de			; (11)
-	
+
+	;; Pad routine to fill V. Sync period (580)
 	ld b, 0x2C		; (7)
-RLOOP:	djnz RLOOP		; (13/8)
+RC_LOOP:
+	djnz RC_LOOP		; (13/8)
 	
 	ret			; (10)
 
@@ -352,7 +342,12 @@ COORD_MSG:
 
 
 	;; ----------------------------------------------------------------
-	;; Wait for no key
+	;; Wait until no key is being pressed
+	;;
+	;; On entry:
+	;;
+	;; On exit:
+	;;     af, bc, de, hl - corrupted
 	;; ----------------------------------------------------------------
 WAIT_NO_KEY:
 	call KSCAN		; (712 + 17)
@@ -362,8 +357,10 @@ WAIT_NO_KEY:
 	ld a,h			; (4)
 	or l			; (4)
 
-	jr nz, WK_PRESSED 	; (12/7)
-
+	ld b,0x27		; (7) Default wait time
+	jr nz, WK_DUMMY 	; (12/7)
+	ld b,0x23		; (7) Reduce wait time
+	
 	;;  No key pressed, so advance to next game step
 	pop de			; (10)
 	pop hl			; (10)
@@ -371,20 +368,11 @@ WAIT_NO_KEY:
 	push hl			; (11)
 	push de			; (11)
 
-	;; Wait 1,283 - 798 - 10 = 475
-	ld b, 0x24
-W_DUMMY:
-	;; 
-	djnz W_DUMMY
+	;; Wait until end of V. Sync
+WK_DUMMY:
+	djnz WK_DUMMY		; (13/8)
 
-	ret
-
-WK_PRESSED:
-	ld b,0x29
-WK_LOOP:	
-	djnz WK_LOOP
-	
-	ret			; (10)
+PROF:	ret			; (10)
 	
 	;; ----------------------------------------------------------------
 	;; Get first digit of row coordinate (0 or 1)
@@ -713,7 +701,7 @@ CS_WAIT:
 	ret			; (10)
 
 CS_NOT_SOLVED:
-		;; Update game-step counter
+	;; Update game-step counter
 	pop de			; (10)
 	pop hl			; (10)
 	ld bc, 0x0007		; (10) 
@@ -999,61 +987,6 @@ FLOOP:	add a,l			; (4) Advance offset pointer (by 5 or 1)
 F2KEYS:	ld a,_SPACE		; (4) Load space char
 	
 	ret	  		; (10)
-	
-;; 	;;
-;; 	;; Read key from keyboard
-;; 	;; 
-;; GETKEY:	call KSCAN
-;; 	ld b,h
-;; 	ld c,l
-;; 	ld d,c
-;; 	inc d
-;; 	ld a, 0x00		; Avoid changing flags
-;; 	jr z, NOCHR
-;; 	call FINDCHR
-;; 	ld a,(hl)
-	
-;; NOCHR:	ret
-
-;; TEST:	call GETKEY
-;; 	jr TEST
-
-	
-;; 	; now decode the value (in BC)
-;; FIND_KEY
-;;         SRA     B               ; sets carry if unshifted (bit 7 remains set)
-;;         SBC     A,A             ; $FF unshifted, else $00
-;;         OR      $26             ; $FF unshifted, else $26
-;;         LD      L,$05           ; there are five keys in each row.
-;;         SUB     L               ; set the starting point
-
-;; ;; KEY-LINE
-;; L032B:  ADD     A,L             ; add value 5 (or 1)
-;;         SCF                     ; carry will go to bit 7
-;;         RR      C               ; test C (which has 1 unset bit identifying row)
-;;         JR      C,L032B         ; back if carry to KEY-LINE
-
-;; ; if only one key pressed C should now be $FF.
-
-;;         INC     C               ; test for $FF
-;;         JR      NZ,L02F7        ; back if multiple keys to ED-COPY
-
-;; ; the high byte of the key value identifies the column - again only one bit is
-;; ; now reset.
-
-;;         LD      C,B             ; transfer to B
-;;         DEC     L               ; test if this is first time through
-;;         LD      L,$01           ; reduce increment from five to one.
-;;         JR      NZ,L032B        ; back if L was five to KEY-LINE
-
-;; ; The accumulator now holds a key value 1-78 decimal.
-
-;;         LD      HL,L006C - 1    ; location before the MAIN-KEYS table ($006B)
-;;                                 ; the index value is 1 - 78.
-
-;;         LD      E,A             ; code to E  (D is zero from keyboard)
-;;         ADD     HL,DE           ; index into the table.
-;;         LD      A,(HL)          ; pick up the letter/number/.
 
 	;;
 	;; Simple Random Number Generator
@@ -1080,8 +1013,5 @@ RAND:	ld hl,(SEED)		; (16)
 	ret			; (10)
 
 SEED:	dw 0x0000
-
-
-
 
 END:	
