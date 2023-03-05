@@ -101,6 +101,9 @@ JUMP_TABLE:
 	dw WAIT_NO_KEY		;
 	dw GET_ROW_0		;
 	dw FLIP_IT		;
+	dw CHECK_SOLVED		;
+	dw WAIT_NO_KEY		;
+	dw RESTART_GAME		;
 	dw IDLE			; 1240 T states
 
 COORD:	dw 0x0000		; User-specified coordinate (or temp.
@@ -649,7 +652,7 @@ KLOOP2:	djnz KLOOP2		; (13/8)
 	;; On exit:
 	;;
 	;; Timing:
-	;;     1,387 T states
+	;;     1,364 T states
 	;; ----------------------------------------------------------------
 FLIP_IT:
 	;; Retrieve coordinate into BC
@@ -667,14 +670,108 @@ FLIP_IT:
 	;; Update game-step counter
 	pop de			; (10)
 	pop hl			; (10)
-	ld bc, 0x0006		; (10) 
-	and a			; (4)
-	sbc hl,bc		; (15)
+	inc hl			; (6)
 	push hl			; (11)
 	push de			; (11)
 
 	ret			; (10)
 
+	;; ----------------------------------------------------------------
+	;; Check if solved
+	;; ----------------------------------------------------------------
+CHECK_SOLVED:	
+	;; Transfer asterisk count to DE
+	push ix			; (15)
+	pop de			; (10)
+
+	;; Check for zero
+	ld a,d			; (4)
+	or e			; (4)
+
+	jr NZ, CS_NOT_SOLVED	; (12/7)
+
+	;; Print congratulations
+	;; 802 T states
+	ld hl, DONE_MSG		; (10)
+	ld bc, 0x001D		; (10)
+	ld de, DISPLAY+21*33+1	; (10)
+	ldir			; ( = 28*27+16)
+
+	;; Update game sequence counter
+	pop de			; (10)
+	pop hl			; (10)
+	inc hl			; (6)
+	push hl			; (11)
+	push de			; (11)
+
+	;; 900
+	ld b, 0x25
+CS_WAIT:
+	djnz CS_WAIT
+	
+	;; 
+	ret			; (10)
+
+CS_NOT_SOLVED:
+		;; Update game-step counter
+	pop de			; (10)
+	pop hl			; (10)
+	ld bc, 0x0007		; (10) 
+	and a			; (4)
+	sbc hl,bc		; (15)
+	push hl			; (11)
+	push de			; (11)
+
+	;; 116
+	ld b,0x61
+CS_WAIT_2:
+	djnz CS_WAIT_2
+
+	ret
+	
+DONE_MSG:
+	db _SPACE, _G, _R, _I, _D, _SPACE, _S, _O
+	db _L, _V, _E, _D, _FULLSTOP, _SPACE, _P, _R
+	db _E, _S, _S, _SPACE, _A, _N, _Y, _SPACE
+	db _K, _E, _Y, _FULLSTOP, _SPACE, _SPACE, _SPACE, _SPACE
+
+	;; ----------------------------------------------------------------
+	;; Wait for no key
+	;; ----------------------------------------------------------------
+RESTART_GAME:
+	call KSCAN		; (712 + 17)
+
+	;; Check if HL = 0xFFFF, which indicates no key pressed
+	inc hl			; (6) HL = 0 ?
+	ld a,h			; (4)
+	or l			; (4)
+
+	jr z, RG_NO_KEY 	; (12/7)
+
+	;;  No key pressed, so advance to next game step
+	pop de			; (10)
+	pop hl			; (10)
+	ld bc, 0x000C		; (10)
+	and a			; (4)
+	sbc hl,bc		; (15)
+	push hl			; (11)
+	push de			; (11)
+
+	;; Wait 1,283 - 821 - 10 = 452
+	ld b, 0x23
+RG_DUMMY:
+	;; 
+	djnz RG_DUMMY
+
+	ret
+
+RG_NO_KEY:
+	ld b,0x28
+RG_LOOP:	
+	djnz RG_LOOP
+	
+	ret			; (10)
+	
 	;; ----------------------------------------------------------------
 	;; Convert grid coordinate into screen address
 	;; ----------------------------------------------------------------
