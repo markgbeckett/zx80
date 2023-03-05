@@ -6,15 +6,15 @@ It can be run on a ZX80 (with 4K ROM and 16K RAM) or a Minstrel 2. At the moment
 
 To use the program:
 
-1. Copy the binary file `hampson.bin` to an SD card.
-2. Load the program into memory at address 0x6000 -- for example, using the ZXpand command `LOAD "hampson.bin;24576"`.
-3. Enter `RANDOMIZE USR(25369)`
+1. Assemble `hampson.asm` using an assemblers such as [the Z80 Assembler on Savannah](https://www.nongnu.org/z80asm/). A Makefile is included.
+2. Copy the binary file `hampson.bin` to an SD card.
+3. Load the program into memory at address 0x6000 -- for example, using the ZXpand command `LOAD "hampson.bin;24576"`.
+4. Enter `RANDOMIZE USR(25369)`
 
-The aim of the game is to clear the grid by removing all of the asterisks. Each move you enter a coordinate (column first) to flip a tile from asterisk to space or vice versa. However, the move will also flip the tile that border the cell you select, making it a little more tricky.
+The aim of the game is to clear the grid by removing all of the asterisks. Each move you enter a coordinate (column first) to flip a tile from asterisk to space or vice versa. However, the move will also flip the tiles that border the cell you select, making it a little more tricky.
 
 Coordinates are enterer as three-character references, with a letter followed by two digits. For example, enter "A", "1", "2" to specify cell A12, or "U", "0", "2" to select cell "U2". Invalid inputs are discarded.
 
-Note: The game is incomplete: at the moment there is no check that the player has solved the grid. Check back regularly for updates.
 
 ## Development
 
