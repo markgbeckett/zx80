@@ -53,7 +53,7 @@ V_ON:	in a, (0xFE)		; Turn on vertical sync generator
 	;; 
 	;; Game code (max of 1,360 T states between V_ON and V_OFF)
 	;;
-	
+
 	;; Jump to correct routine (77 T states + routine cost)	
 	add hl,hl		; (11) Multiple by 2
 	ld de, JUMP_TABLE	; (10)
@@ -101,7 +101,8 @@ JUMP_TABLE:
 	dw GET_ROW_1		;
 	dw WAIT_NO_KEY		;
 	dw GET_ROW_0		;
-	dw FLIP_IT		;
+	dw FLIP_IT_1		;
+	dw FLIP_IT_2		;
 	dw CHECK_SOLVED		;
 	dw WAIT_NO_KEY		;
 	dw RESTART_GAME		;
@@ -353,6 +354,11 @@ COORD_MSG:
 	;;     
 	;; ----------------------------------------------------------------
 WAIT_NO_KEY:
+	;; Advance timer
+	ld hl,(FRAME)		; (16)
+	inc hl			; (6)
+	ld (FRAME),hl		; (16)
+	
 	call KSCAN		; (712 + 17)
 
 	;; Check if HL = 0xFFFF, which indicates no key pressed
@@ -360,10 +366,10 @@ WAIT_NO_KEY:
 	ld a,h			; (4)
 	or l			; (4)
 
-	ld b,0x27		; (7) Default wait time (used at end of
+	ld b,0x24		; (7) Default wait time (used at end of
 	                        ;     routine
 	jr nz, WK_DUMMY 	; (12/7)
-	ld b,0x23		; (7) Reduce wait time
+	ld b,0x20		; (7) Reduce wait time
 	
 	;;  No key pressed, so advance to next game step
 	pop de			; (10)
@@ -376,16 +382,25 @@ WAIT_NO_KEY:
 WK_DUMMY:
 	djnz WK_DUMMY		; (13/8)
 
-PROF:	ret			; (10)
+	ret			; (10)
 	
 	;; ----------------------------------------------------------------
 	;; Get first digit of row coordinate (0 or 1)
 	;;
-	;; If 1 is pressed, 88 + GR_DONE
-	;; If 0 is pressed, 126 + GR_DONE
-	;; If no suitable key, 92 + GW_NO_0
+	;; On entry:
+	;;
+	;; On exit:
+	;;     AF, BC, DE, HL corrupted
+	;;
+	;; Timing
+	;; 
 	;; ----------------------------------------------------------------
 GET_ROW_1:
+		;; Advance timer
+	ld hl,(FRAME)		; (16)
+	inc hl			; (6)
+	ld (FRAME),hl		; (16)
+
 	;; Read keys 1,..., 5 (29 T-states)
 	ld bc, 0xF7FE		; (10)
 	in a,(c)		; (12)
@@ -399,7 +414,7 @@ GET_ROW_1:
 	ld c,_1			; (7)
 
 	;; Set length of wait loop
-	ld b, 0x57		; (7)
+	ld b, 0x54		; (7)
 
 	jr GR_DONE		; (12)
 	
@@ -410,7 +425,7 @@ GR_NOT_1:
 	cp 0x7E			; (7)
 
 	;; Skip forward if '0' not pressed
-	ld b,0x5B		; (7) Set wait value
+	ld b,0x58		; (7) Set wait value
 	jr nz, GR_WAIT		; (12/7)
 
 	;; Set A to partial row number and C to corresponding digit
@@ -418,7 +433,7 @@ GR_NOT_1:
 	ld c,_0			; (7)
 
 	;; Set length of wait loop
-	ld b,0x55		; (7)
+	ld b,0x52		; (7)
 
 GR_DONE:
 	;; Valid digit has been selected, so store it and
@@ -444,6 +459,11 @@ GR_WAIT:
 	;; Read second coordinate of row id
 	;; ----------------------------------------------------------------
 GET_ROW_0:
+	;; Advance timer
+	ld hl,(FRAME)		; (16)
+	inc hl			; (6)
+	ld (FRAME),hl		; (16)
+	
 	;; 268...270 T states
 	call READNUM		; (17+251...253)
 
@@ -472,24 +492,29 @@ GET_ROW_0:
 
 	;; Need 1283-380 T states
 
-	ld b,0x46
+	ld b,0x40
 G0_LOOP:
 	djnz G0_LOOP
 
 	ret
 	
 G0_NO_KEY:
-	ld b, 0x4B
+	ld b, 0x48
 G0_LOOP_2:
 	djnz G0_LOOP_2
 	
 	ret			; (10)
 	
 	;; ----------------------------------------------------------------
-	;; Read letter
+	;; Read column reference
 	;; ----------------------------------------------------------------
 	;; 763 + ??? T-states (aim for 1,283 T states)
 GET_COL:
+	;; Advance timer
+	ld hl,(FRAME)		; (16)
+	inc hl			; (6)
+	ld (FRAME),hl		; (16)
+
 	;; 589--591 T-states
 	ld d, 0xFF		; (7)
 	
@@ -553,10 +578,7 @@ NO_F:	cp 0x6F			; (7)
 NO_G:	ld bc, 0xBFFE		; (10)
 	in a,(c)		; (12)
 
-	cp 0x7E			; (7)
-	jr nz, NO_ENT		; (12/7)
-	ld d, 0xFF		; (7)
-NO_ENT:	cp 0x7D			; (7)
+	cp 0x7D			; (7)
 	jr nz, NO_L		; (12/7)
 	ld d, _L		; (7)
 NO_L:	cp 0x7B			; (7)
@@ -572,10 +594,7 @@ NO_J:	cp 0x6F			; (7)
 NO_H:	ld bc, 0xFEFE		; (10)
 	in a,(c)		; (12)
 
-	cp 0x7E			; (7)
-	jr nz, NO_SH		; (12/7)
-	ld d, 0xFF			; (7)
-NO_SH:	cp 0x7D			; (7)
+	cp 0x7D			; (7)
 	jr nz, NO_Z		; (12/7)
 	ld d, _Z		; (7)
 NO_Z:	cp 0x7B			; (7)
@@ -591,13 +610,7 @@ NO_C:	cp 0x6F			; (7)
 NO_V:	ld bc, 0x7FFE		; (10)
 	in a,(c)		; (12)
 
-	cp 0x7E			; (7)
-	jr nz, NO_SP		; (12/7)
-	ld d, 0xFF			; (7)
-NO_SP:	cp 0x7D			; (7)
-	jr nz, NO_DOT		; (12/7)
-	ld d, 0xFF		; (7)
-NO_DOT:	cp 0x7B			; (7)
+	cp 0x7B			; (7)
 	jr nz, NO_M		; (12/7)
 	ld d, _M		; (7)
 NO_M:	cp 0x77			; (7)
@@ -609,7 +622,7 @@ NO_N:	cp 0x6F			; (7)
 
 NO_B:	ld hl, DISPLAY+33*21+26	; (10)
 	ld a,d			; (4)
-	cp 0xFF			; (7)
+	inc d			; (4)
 	jr z, NO_KEY_PRESSED	; (12/7)
 	ld (hl),a		; (7)
 
@@ -625,12 +638,12 @@ NO_B:	ld hl, DISPLAY+33*21+26	; (10)
 	jr KEY_PRESSED		; (7)
 	
 NO_KEY_PRESSED:	
-	ld b, 0x06		; (7)
+	ld b, 0x07		; (7)
 KLOOP1:	djnz KLOOP1		; (13/8)
 
 KEY_PRESSED:	
 	;; 7 + 8 +(N-1)*13
-	ld b, 0x23		; (7)
+	ld b, 0x24		; (7)
 KLOOP2:	djnz KLOOP2		; (13/8)
 	
 	ret			; (10)
@@ -645,7 +658,12 @@ KLOOP2:	djnz KLOOP2		; (13/8)
 	;; Timing:
 	;;     1,364 T states
 	;; ----------------------------------------------------------------
-FLIP_IT:
+FLIP_IT_1:
+	;; Advance timer
+	ld hl,(FRAME)		; (16)
+	inc hl			; (6)
+	ld (FRAME),hl		; (16)
+
 	;; Retrieve coordinate into BC
 	ld hl,COORD		; (10)
 	ld c,(hl)		; (7)
@@ -654,6 +672,48 @@ FLIP_IT:
 
 	;; Convert coordinate to address ...
 	call COL2ADDR		; (17 + 458)
+
+	;; ... and flip tile block
+	ld (COORD),hl		; (16)
+
+	;; Update game-step counter
+	pop de			; (10)
+	pop hl			; (10)
+	inc hl			; (6)
+	push hl			; (11)
+	push de			; (11)
+
+	;; Wait until end of V. Sync
+	ld b,0x32		; (7)
+FI1_WAIT:
+	djnz FI1_WAIT		; (13/8)
+	
+	ret			; (10)
+
+	;; ----------------------------------------------------------------
+	;; Flip 3x3 tile based on user-inputted coordinate (in COORD)
+	;; ----------------------------------------------------------------
+	;; On entry:
+	;;     (COORD) - user-input coordinate
+	;; On exit:
+	;;
+	;; Timing:
+	;;     1,364 T states
+	;; ----------------------------------------------------------------
+FLIP_IT_2:
+	;; Advance timer
+	ld hl,(FRAME)		; (16)
+	inc hl			; (6)
+	ld (FRAME),hl		; (16)
+
+	;; Retrieve coordinate into BC
+	ld hl,COORD		; (10)
+	ld c,(hl)		; (7)
+	inc hl			; (6)
+	ld b,(hl)		; (7)
+
+	;; Retrieve address into HL
+	ld hl,(COORD)		; (16)
 
 	;; ... and flip tile block
 	call FLIP9		; (17 + 784)
@@ -665,6 +725,11 @@ FLIP_IT:
 	push hl			; (11)
 	push de			; (11)
 
+	;; Wait until end of V. Sync
+	ld b,0x18		; (7)
+FI2_WAIT:
+	djnz FI2_WAIT		; (13/8)
+	
 	ret			; (10)
 
 	;; ----------------------------------------------------------------
@@ -707,18 +772,18 @@ CS_NOT_SOLVED:
 	;; Update game-step counter
 	pop de			; (10)
 	pop hl			; (10)
-	ld bc, 0x0007		; (10) 
+	ld bc, 0x0008		; (10) 
 	and a			; (4)
 	sbc hl,bc		; (15)
 	push hl			; (11)
 	push de			; (11)
 
 	;; 116
-	ld b,0x61
+	ld b,0x57
 CS_WAIT_2:
 	djnz CS_WAIT_2
 
-	ret
+PROF:	ret
 	
 DONE_MSG:
 	db _SPACE, _G, _R, _I, _D, _SPACE, _S, _O
