@@ -348,6 +348,9 @@ COORD_MSG:
 	;;
 	;; On exit:
 	;;     af, bc, de, hl - corrupted
+	;;
+	;; Timing:
+	;;     
 	;; ----------------------------------------------------------------
 WAIT_NO_KEY:
 	call KSCAN		; (712 + 17)
@@ -357,7 +360,8 @@ WAIT_NO_KEY:
 	ld a,h			; (4)
 	or l			; (4)
 
-	ld b,0x27		; (7) Default wait time
+	ld b,0x27		; (7) Default wait time (used at end of
+	                        ;     routine
 	jr nz, WK_DUMMY 	; (12/7)
 	ld b,0x23		; (7) Reduce wait time
 	
@@ -382,47 +386,47 @@ PROF:	ret			; (10)
 	;; If no suitable key, 92 + GW_NO_0
 	;; ----------------------------------------------------------------
 GET_ROW_1:
-	;; 29 T-states
+	;; Read keys 1,..., 5 (29 T-states)
 	ld bc, 0xF7FE		; (10)
 	in a,(c)		; (12)
 	cp 0x7E			; (7)
 
-	jr nz, GW_NO_1		; (12/7)
-	ld a,0x0a		; (7)
-	ld (COORD+1), a		; (13)
-	ld a,_1			; (7)
-	ld (DISPLAY+21*33+27),a	; (13)
+	;; Skip forward if '1' not pressed
+	jr nz, GR_NOT_1		; (12/7)
 
-	;; Dummy of 38 T states
-	ld b, 0x02
-GW_LOOP_0:
-	djnz GW_LOOP_0
+	;; Set A to partial row number and C to corresponding digit
+	ld a,0x0a		; (7)
+	ld c,_1			; (7)
+
+	;; Set length of wait loop
+	ld b, 0x57		; (7)
 
 	jr GR_DONE		; (12)
 	
-GW_NO_1:
+GR_NOT_1:
+	;; Read key 6,...,0 (29)
 	ld bc, 0xEFFE		; (10)
 	in a,(c)		; (12)
-
 	cp 0x7E			; (7)
-	jr nz, GW_NO_0		; (12/7)
-	
+
+	;; Skip forward if '0' not pressed
+	ld b,0x5B		; (7) Set wait value
+	jr nz, GR_WAIT		; (12/7)
+
+	;; Set A to partial row number and C to corresponding digit
 	xor a			; (4)
-	ld (COORD+1),a		; (13)
-	ld a,_0			; (7)
-	ld (DISPLAY+21*33+27),a	; (13)
+	ld c,_0			; (7)
 
-	jr GR_DONE		; (12)
+	;; Set length of wait loop
+	ld b,0x55		; (7)
+
+GR_DONE:
+	;; Valid digit has been selected, so store it and
+	;; proceed to next step
+	ld (COORD+1),a		; (13) Store partial coordinate
+	ld a,c			; (4)  Get character code
+	ld (DISPLAY+21*33+27),a	; (13) Display digit
 	
-	;; 1181 T states to wait
-GW_NO_0:
-	ld b,0x5C
-GW_LOOP:
-	djnz GW_LOOP
-
-	ret
-
-GR_DONE: 			; Need 1177 T-states
 	;; Advance game sequence
 	pop de 			; (10)
 	pop hl			; (10)
@@ -430,12 +434,11 @@ GR_DONE: 			; Need 1177 T-states
 	push hl			; (11)
 	push de			; (11)
 
-	ld b,0x55
-GW_LOOP_2:
-	djnz GW_LOOP_2
+	;; Wait until end of V. Sync (B set previously)
+GR_WAIT:
+	djnz GR_WAIT
 	
 	ret			; (10)
-	
 
 	;; ----------------------------------------------------------------
 	;; Read second coordinate of row id
