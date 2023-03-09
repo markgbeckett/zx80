@@ -104,6 +104,7 @@ JUMP_TABLE:
 	dw FLIP_IT_1		;
 	dw FLIP_IT_2		;
 	dw CHECK_SOLVED		;
+	dw PRINT_TIME		;
 	dw WAIT_NO_KEY		;
 	dw RESTART_GAME		;
 	dw IDLE			; 1240 T states
@@ -125,6 +126,8 @@ NEW_GAME:
 	ld de, DISPLAY+21*33+1	; (10)
 	ldir			; ( = 21*27+16)
 
+	;; Reset timer
+	ld (FRAME), BC		; (16)
 
 	;; Read number from keyboard (268...270 T states)
 	call READNUM		; (17+251...253)
@@ -670,6 +673,11 @@ FLIP_IT_1:
 	inc hl			; (6)
 	ld b,(hl)		; (7)
 
+	;; Check row number is in range
+	ld a,b			; (4)
+	cp 0x10			; (7)
+	jr nc, FI1_INVALID	; (12/7)
+	
 	;; Convert coordinate to address ...
 	call COL2ADDR		; (17 + 458)
 
@@ -684,12 +692,28 @@ FLIP_IT_1:
 	push de			; (11)
 
 	;; Wait until end of V. Sync
-	ld b,0x32		; (7)
+	ld b,0x30		; (7)
 FI1_WAIT:
 	djnz FI1_WAIT		; (13/8)
 	
 	ret			; (10)
 
+FI1_INVALID:
+	;; Return to coordinate selection
+	pop de			; (10)
+	pop hl			; (10)
+	ld bc, 0xFFFA		; (10)
+	add hl,bc		; (11)
+	push hl			; (11)
+	push de			; (11)
+
+	;; Delay until end of V. Sync signal
+	ld b, 0x56
+FI1_WAIT_2:
+	djnz FI1_WAIT_2
+
+	ret
+	
 	;; ----------------------------------------------------------------
 	;; Flip 3x3 tile based on user-inputted coordinate (in COORD)
 	;; ----------------------------------------------------------------
@@ -733,9 +757,26 @@ FI2_WAIT:
 	ret			; (10)
 
 	;; ----------------------------------------------------------------
-	;; Check if solved
+	;; Check if grid has been solved (indicated by asterisk count being
+	;; zero).
+	;;
+	;; On entry:
+	;;     IX - count of visible asterisks in grid
+	;;     2OS - current game step
+	;; 
+	;; On exit:
+	;;     IX - count of visible asterisks in grid
+	;;     2OS - next game step (either next move or new game)
+	;;     AF, BC, HL, DE - corrupted
+	;; 
+	;; Timing
 	;; ----------------------------------------------------------------
 CHECK_SOLVED:	
+	;; Advance timer
+	ld hl,(FRAME)		; (16)
+	inc hl			; (6)
+	ld (FRAME),hl		; (16)
+
 	;; Transfer asterisk count to DE
 	push ix			; (15)
 	pop de			; (10)
@@ -753,15 +794,15 @@ CHECK_SOLVED:
 	ld de, DISPLAY+21*33+1	; (10)
 	ldir			; ( = 28*27+16)
 
-	;; Update game sequence counter
+	;; Update game sequence counter to end-game
 	pop de			; (10)
 	pop hl			; (10)
 	inc hl			; (6)
 	push hl			; (11)
 	push de			; (11)
 
-	;; 900
-	ld b, 0x25
+	;; Wait until end of V. Sync
+	ld b, 0x1B
 CS_WAIT:
 	djnz CS_WAIT
 	
@@ -769,7 +810,7 @@ CS_WAIT:
 	ret			; (10)
 
 CS_NOT_SOLVED:
-	;; Update game-step counter
+	;; Update game-step counter to request next move
 	pop de			; (10)
 	pop hl			; (10)
 	ld bc, 0x0008		; (10) 
@@ -778,23 +819,53 @@ CS_NOT_SOLVED:
 	push hl			; (11)
 	push de			; (11)
 
-	;; 116
-	ld b,0x57
+	;; Wait until end of V. sync.
+	ld b,0x55
 CS_WAIT_2:
 	djnz CS_WAIT_2
 
-PROF:	ret
+PROF:	ret			; (10)
 	
 DONE_MSG:
 	db _SPACE, _G, _R, _I, _D, _SPACE, _S, _O
-	db _L, _V, _E, _D, _FULLSTOP, _SPACE, _P, _R
-	db _E, _S, _S, _SPACE, _A, _N, _Y, _SPACE
-	db _K, _E, _Y, _FULLSTOP, _SPACE, _SPACE, _SPACE, _SPACE
+	db _L, _V, _E, _D,  _SPACE, _I, _N, _SPACE
+	db _SPACE, _SPACE, _SPACE, _SPACE, _SPACE, _SPACE, _SPACE, _SPACE
+	db _S, _E, _C, _S, _SPACE, _SPACE, _SPACE, _SPACE
 
+	;; ----------------------------------------------------------------
+	;; Print time taken to solve the grid
+	;; ----------------------------------------------------------------
+PRINT_TIME:
+	;; Retrieve time in frames and convert to seconds
+	ld hl,(FRAME)		; Retrieve timer
+	add hl,hl		; Multiply by two to get 100th of sec
+
+	ld a,_0			; (7)
+	ld de,DISPLAY+21*33+17	; (10)
+	jr c,PT_1		; (12/7)
+	ld (de),a		; (7)
+	jr PT_0			; (12)
+PT_1:	ld a,_1			; (7) Could use inc but ld balances time
+	ld (de),a		; (7)
+PT_0:	inc de			; (6)
+	
+	;; Print it
+	call PRINT_HL
+
+	;; Advance to next game step
+	pop de			; (10)
+	pop hl			; (10)
+	inc hl
+	push hl			; (11)
+	push de			; (11)
+	
+	ret
+	
 	;; ----------------------------------------------------------------
 	;; Wait for no key
 	;; ----------------------------------------------------------------
 RESTART_GAME:
+	;; Check for no key pressed
 	call KSCAN		; (712 + 17)
 
 	;; Check if HL = 0xFFFF, which indicates no key pressed
@@ -807,7 +878,7 @@ RESTART_GAME:
 	;;  No key pressed, so advance to next game step
 	pop de			; (10)
 	pop hl			; (10)
-	ld bc, 0x000C		; (10)
+	ld bc, 0x000E		; (10)
 	and a			; (4)
 	sbc hl,bc		; (15)
 	push hl			; (11)
@@ -1083,3 +1154,31 @@ RAND:	ld hl,(SEED)		; (16)
 SEED:	dw 0x0000
 
 END:	
+
+	
+	;; ----------------------------------------------------------------
+	;; Print contents of HL to address held in DE
+	;; ----------------------------------------------------------------
+PRINT_HL:
+	ld   bc,-10000
+        call ONEDIGIT
+        ld   bc,-1000
+        call ONEDIGIT
+        ld   bc,-100
+        call ONEDIGIT
+	ld a,_FULLSTOP
+	ld (de),a
+	inc de
+        ld   c,-10
+        call ONEDIGIT
+        ld   c,b
+ONEDIGIT:
+	ld   a,_0-1
+DIVIDEME:
+	inc  a
+        add  hl,bc
+        jr   c,DIVIDEME
+        sbc  hl,bc
+        ld   (de),a
+        inc  de
+        ret
