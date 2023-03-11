@@ -113,21 +113,18 @@ JUMP_TABLE:
 COORD:	dw 0x0000		; User-specified coordinate (or temp.
 	                        ; store for address during grid init)
 COUNT:	dw 0x000		; Counter for randomising initial grid
+CLOCK:	ds 03			; 24-bit clock for game
 	
 	;; ----------------------------------------------------------------
 	;; Start new game
 	;; ----------------------------------------------------------------
 	;; Usually 1,287 T states (aim for 1,283)
 NEW_GAME:
-	;; 612 T states
-	;; Print message asking user to choose difficult level
+	;; Print message asking user to choose difficult level (613)
 	ld hl, SKILL_MSG	; (10)
-	ld bc, 0x001C		; (10)
+PROF:	ld bc, 0x001C		; (10)
 	ld de, DISPLAY+21*33+1	; (10)
-	ldir			; ( = 21*27+16)
-
-	;; Reset timer
-	ld (FRAME), BC		; (16)
+	ldir			; ( = 27*21+16)
 
 	;; Read number from keyboard (268...270 T states)
 	call READNUM		; (17+251...253)
@@ -138,12 +135,10 @@ NEW_GAME:
 	cp 0x01			; (7)
 	jr c, NG_NO_NUM		; (12/7)
 	cp 0x0A			; (7)
-	jr nc, NG_NO_NUM_2		; (12/7)
+	jr nc, NG_NO_NUM_2	; (12/7)
 
 	;; Print input and work out how many iterations of
-	;; randomisation to do
-	
-	;; 350 T-states + return
+	;; randomisation to do (28)
 	ld b,a			; (4)
 	add a,_0 		; (7)
 	ld (DISPLAY+21*33+27),a ; (13)
@@ -151,7 +146,7 @@ NEW_GAME:
 
 	;; Reset counter and set increment
 	ld hl, 0x0000		; (10)
-	ld de, 40		; (10)
+	ld de, 0x40		; (10)
 
 	;; 19 + (N-1)*24 = 19 ... 211
 NG_ADD:	add hl,de		; (11)
@@ -167,7 +162,7 @@ NG_ADD:	add hl,de		; (11)
 	sub b			; (4)
 	ld b,a			; (4)
 
-	;; 19 + (N-1)*24 = 19 ... 139
+	;; 19 + (N-1)*24 = 19 ... 211
 NG_DUMMY:
 	add hl,de		; (11)
 	djnz NG_DUMMY		; (13/8)
@@ -186,12 +181,11 @@ NG_DUMMY:
 NG_NO_NUM:
 	add a,0x00		; (7)
 	add a,0x00		; (7)
+	;; 920 so far
 
-	;; 344 T-states (aim for 345 T-states) + ret
-	;; 
+	;; (15 + 26*13 = 353)
 NG_NO_NUM_2:
-	nop			; (4)
-	ld b,0x1A		; (7)
+	ld b,0x1B		; (7)
 NG_NN_LOOP:
 	djnz NG_NN_LOOP		; (13/8)
 
@@ -258,9 +252,13 @@ F1_LOOP:
 
 	ret			; (10)
 
-	;; Game board is generated, though need to pad out routine to
-	;; fill V. Sync period
-F1_DONE:			; (64)
+	;; Game board is generated, so reset clock, advance game
+	;; pointer, and wait until end of V. Sync period
+F1_DONE:
+	;; Reset timer
+	call RESET_CLOCK	; (70)
+
+	;; Advance game counter
 	pop de			; (10) Return address for routine
 	pop hl			; (10) Sequence counter
 	inc hl			; (6) Next step
@@ -269,7 +267,7 @@ F1_DONE:			; (64)
 	push de			; (11) and return address
 
 	;; Dummy wait (7 + 8 + 59*13 = 782)
-	ld b, 0x3C
+	ld b, 0x37
 F1_WAIT:
 	djnz F1_WAIT
 
@@ -316,6 +314,9 @@ IDLE_W:	djnz IDLE_W		; (13/8)
 	
 	;; ----------------------------------------------------------------
 	;; Print message to request coordinate
+	;;
+	;; Timing:
+	;;     1,278 T-states
 	;; ----------------------------------------------------------------
 REQ_COORD:	
 	;; Copy message to row 21 of display (613)
@@ -331,8 +332,11 @@ REQ_COORD:
 	push hl			; (11)
 	push de			; (11)
 
-	;; Pad routine to fill V. Sync period (580)
-	ld b, 0x2C		; (7)
+	ld de, DISPLAY+20*33+24	; (10)
+	call PRINT_CLOCK	; (426)
+	
+	;; Pad routine to fill V. Sync period (175)
+	ld b, 0x0D		; (7)
 RC_LOOP:
 	djnz RC_LOOP		; (13/8)
 	
@@ -358,21 +362,20 @@ COORD_MSG:
 	;; ----------------------------------------------------------------
 WAIT_NO_KEY:
 	;; Advance timer
-	ld hl,(FRAME)		; (16)
-	inc hl			; (6)
-	ld (FRAME),hl		; (16)
-	
+	call INC_CLOCK 		; (124)
+
+	;; Check for key-press (729)
 	call KSCAN		; (712 + 17)
 
-	;; Check if HL = 0xFFFF, which indicates no key pressed
+	;; Check if HL = 0xFFFF, which indicates no key pressed (14)
 	inc hl			; (6) HL = 0 ?
 	ld a,h			; (4)
 	or l			; (4)
 
-	ld b,0x24		; (7) Default wait time (used at end of
+	ld b,0x1E		; (7) Default wait time (used at end of
 	                        ;     routine
 	jr nz, WK_DUMMY 	; (12/7)
-	ld b,0x20		; (7) Reduce wait time
+	ld b,0x19		; (7) Reduce wait time
 	
 	;;  No key pressed, so advance to next game step
 	pop de			; (10)
@@ -399,11 +402,9 @@ WK_DUMMY:
 	;; 
 	;; ----------------------------------------------------------------
 GET_ROW_1:
-		;; Advance timer
-	ld hl,(FRAME)		; (16)
-	inc hl			; (6)
-	ld (FRAME),hl		; (16)
-
+	;; Advance timer
+	call INC_CLOCK		; (124)
+	
 	;; Read keys 1,..., 5 (29 T-states)
 	ld bc, 0xF7FE		; (10)
 	in a,(c)		; (12)
@@ -413,11 +414,11 @@ GET_ROW_1:
 	jr nz, GR_NOT_1		; (12/7)
 
 	;; Set A to partial row number and C to corresponding digit
-	ld a,0x0a		; (7)
+	ld a,0x0A		; (7)
 	ld c,_1			; (7)
 
 	;; Set length of wait loop
-	ld b, 0x54		; (7)
+	ld b, 0x4D		; (7)
 
 	jr GR_DONE		; (12)
 	
@@ -428,7 +429,7 @@ GR_NOT_1:
 	cp 0x7E			; (7)
 
 	;; Skip forward if '0' not pressed
-	ld b,0x58		; (7) Set wait value
+	ld b,0x2F		; (7) Set wait value
 	jr nz, GR_WAIT		; (12/7)
 
 	;; Set A to partial row number and C to corresponding digit
@@ -436,7 +437,7 @@ GR_NOT_1:
 	ld c,_0			; (7)
 
 	;; Set length of wait loop
-	ld b,0x52		; (7)
+	ld b,0x4B		; (7)
 
 GR_DONE:
 	;; Valid digit has been selected, so store it and
@@ -455,7 +456,10 @@ GR_DONE:
 	;; Wait until end of V. Sync (B set previously)
 GR_WAIT:
 	djnz GR_WAIT
-	
+
+	ld de, DISPLAY+20*33+24	; (10)
+	call PRINT_CLOCK	; (426)
+
 	ret			; (10)
 
 	;; ----------------------------------------------------------------
@@ -463,9 +467,7 @@ GR_WAIT:
 	;; ----------------------------------------------------------------
 GET_ROW_0:
 	;; Advance timer
-	ld hl,(FRAME)		; (16)
-	inc hl			; (6)
-	ld (FRAME),hl		; (16)
+	call INC_CLOCK		; (124)
 	
 	;; 268...270 T states
 	call READNUM		; (17+251...253)
@@ -493,16 +495,20 @@ GET_ROW_0:
 	push hl			; (11)
 	push de			; (11)
 
-	;; Need 1283-380 T states
-
-	ld b,0x40
+	;; Need 1283-515 T states
+	ld b,0x3B
 G0_LOOP:
 	djnz G0_LOOP
 
 	ret
 	
 G0_NO_KEY:
-	ld b, 0x48
+
+	;; 414 +
+	ld de, DISPLAY+20*33+24	; (10)
+	call PRINT_CLOCK	; (426)
+
+	ld b, 0x21
 G0_LOOP_2:
 	djnz G0_LOOP_2
 	
@@ -514,16 +520,14 @@ G0_LOOP_2:
 	;; 763 + ??? T-states (aim for 1,283 T states)
 GET_COL:
 	;; Advance timer
-	ld hl,(FRAME)		; (16)
-	inc hl			; (6)
-	ld (FRAME),hl		; (16)
-
+	call INC_CLOCK		; (124)
+	
 	;; 589--591 T-states
 	ld d, 0xFF		; (7)
-	
 	ld bc, 0xFBFE		; (10)
 	in a,(c)		; (12)
 
+	;; (95..97)
 	cp 0x7E			; (7)
 	jr nz, NO_Q		; (12/7)
 	ld d, _Q		; (7)
@@ -540,9 +544,11 @@ NO_R:	cp 0x6F			; (7)
 	jr nz, NO_T		; (12/7)
 	ld d, _T		; (7)
 
+	;; (22)
 NO_T:	ld bc, 0xDFFE		; (10)
 	in a,(c)		; (12)
 
+	;; (95...97)
 	cp 0x7E			; (7)
 	jr nz, NO_P		; (12/7)
 	ld d, _P		; (7)
@@ -559,9 +565,11 @@ NO_U:	cp 0x6F			; (7)
 	jr nz, NO_Y		; (12/7)
 	ld d, _Y		; (7)
 
+	;; (22)
 NO_Y:	ld bc, 0xFDFE		; (10)
 	in a,(c)		; (12)
 
+	;; (95...97)
 	cp 0x7E			; (7)
 	jr nz, NO_A		; (12/7)
 	ld d, _A		; (7)
@@ -578,9 +586,11 @@ NO_F:	cp 0x6F			; (7)
 	jr nz, NO_G		; (12/7)
 	ld d, _G		; (7)
 
+	;; (22)
 NO_G:	ld bc, 0xBFFE		; (10)
 	in a,(c)		; (12)
 
+	;; (76...78)
 	cp 0x7D			; (7)
 	jr nz, NO_L		; (12/7)
 	ld d, _L		; (7)
@@ -594,9 +604,11 @@ NO_J:	cp 0x6F			; (7)
 	jr nz, NO_H		; (12/7)
 	ld d, _H		; (7)
 
+	;; (22)
 NO_H:	ld bc, 0xFEFE		; (10)
 	in a,(c)		; (12)
 
+	;; (76...78)
 	cp 0x7D			; (7)
 	jr nz, NO_Z		; (12/7)
 	ld d, _Z		; (7)
@@ -610,9 +622,11 @@ NO_C:	cp 0x6F			; (7)
 	jr nz, NO_V		; (12/7)
 	ld d, _V		; (7)
 
+	;; (22)
 NO_V:	ld bc, 0x7FFE		; (10)
 	in a,(c)		; (12)
 
+	;; (57..59)
 	cp 0x7B			; (7)
 	jr nz, NO_M		; (12/7)
 	ld d, _M		; (7)
@@ -623,15 +637,16 @@ NO_N:	cp 0x6F			; (7)
 	jr nz, NO_B		; (12/7)
 	ld d, _B		; (7)
 
+	;; (No key - 30; Key - 52)
 NO_B:	ld hl, DISPLAY+33*21+26	; (10)
 	ld a,d			; (4)
 	inc d			; (4)
 	jr z, NO_KEY_PRESSED	; (12/7)
 	ld (hl),a		; (7)
-
 	sub a, _9+1		; (7)
 	ld (COORD),a		; (13)
-	
+
+	;; (48)
 	pop de			; (10)
 	pop hl			; (10)
 	inc hl			; (6)
@@ -641,13 +656,19 @@ NO_B:	ld hl, DISPLAY+33*21+26	; (10)
 	jr KEY_PRESSED		; (7)
 	
 NO_KEY_PRESSED:	
-	ld b, 0x07		; (7)
-KLOOP1:	djnz KLOOP1		; (13/8)
+	;; 787 so far
+	ld de, DISPLAY+20*33+24	; (10)
+	call PRINT_CLOCK	; (426)
 
+	ld b,3
+KLOOP2:	djnz KLOOP2
+	
+	ret			; (10)
+	
 KEY_PRESSED:	
 	;; 7 + 8 +(N-1)*13
-	ld b, 0x24		; (7)
-KLOOP2:	djnz KLOOP2		; (13/8)
+	ld b, 0x1D		; (7)
+KLOOP1:	djnz KLOOP1		; (13/8)
 	
 	ret			; (10)
 	
@@ -663,10 +684,8 @@ KLOOP2:	djnz KLOOP2		; (13/8)
 	;; ----------------------------------------------------------------
 FLIP_IT_1:
 	;; Advance timer
-	ld hl,(FRAME)		; (16)
-	inc hl			; (6)
-	ld (FRAME),hl		; (16)
-
+	call INC_CLOCK 		; (124)
+	
 	;; Retrieve coordinate into BC
 	ld hl,COORD		; (10)
 	ld c,(hl)		; (7)
@@ -692,7 +711,7 @@ FLIP_IT_1:
 	push de			; (11)
 
 	;; Wait until end of V. Sync
-	ld b,0x30		; (7)
+	ld b,0x29		; (7)
 FI1_WAIT:
 	djnz FI1_WAIT		; (13/8)
 	
@@ -708,7 +727,7 @@ FI1_INVALID:
 	push de			; (11)
 
 	;; Delay until end of V. Sync signal
-	ld b, 0x56
+	ld b, 0x4F
 FI1_WAIT_2:
 	djnz FI1_WAIT_2
 
@@ -726,9 +745,10 @@ FI1_WAIT_2:
 	;; ----------------------------------------------------------------
 FLIP_IT_2:
 	;; Advance timer
-	ld hl,(FRAME)		; (16)
-	inc hl			; (6)
-	ld (FRAME),hl		; (16)
+	;; ld hl,(FRAME)		; (16)
+	;; inc hl			; (6)
+	;; ld (FRAME),hl		; (16)
+	call INC_CLOCK		; (124)
 
 	;; Retrieve coordinate into BC
 	ld hl,COORD		; (10)
@@ -750,7 +770,7 @@ FLIP_IT_2:
 	push de			; (11)
 
 	;; Wait until end of V. Sync
-	ld b,0x18		; (7)
+	ld b,0x11		; (7)
 FI2_WAIT:
 	djnz FI2_WAIT		; (13/8)
 	
@@ -769,13 +789,13 @@ FI2_WAIT:
 	;;     2OS - next game step (either next move or new game)
 	;;     AF, BC, HL, DE - corrupted
 	;; 
-	;; Timing
+	;; Timing:
+	;;    Solved - 1,286
+	;;    Not solved - 1,285
 	;; ----------------------------------------------------------------
 CHECK_SOLVED:	
 	;; Advance timer
-	ld hl,(FRAME)		; (16)
-	inc hl			; (6)
-	ld (FRAME),hl		; (16)
+	call INC_CLOCK		; (124)
 
 	;; Transfer asterisk count to DE
 	push ix			; (15)
@@ -802,7 +822,7 @@ CHECK_SOLVED:
 	push de			; (11)
 
 	;; Wait until end of V. Sync
-	ld b, 0x1B
+	ld b, 0x14
 CS_WAIT:
 	djnz CS_WAIT
 	
@@ -820,11 +840,11 @@ CS_NOT_SOLVED:
 	push de			; (11)
 
 	;; Wait until end of V. sync.
-	ld b,0x55
+	ld b,0x50
 CS_WAIT_2:
 	djnz CS_WAIT_2
 
-PROF:	ret			; (10)
+	ret			; (10)
 	
 DONE_MSG:
 	db _SPACE, _G, _R, _I, _D, _SPACE, _S, _O
@@ -834,32 +854,32 @@ DONE_MSG:
 
 	;; ----------------------------------------------------------------
 	;; Print time taken to solve the grid
+	;;
+	;; Timing:
+	;;     1,285 T states
 	;; ----------------------------------------------------------------
 PRINT_TIME:
-	;; Retrieve time in frames and convert to seconds
-	ld hl,(FRAME)		; Retrieve timer
-	add hl,hl		; Multiply by two to get 100th of sec
-
-	ld a,_0			; (7)
-	ld de,DISPLAY+21*33+17	; (10)
-	jr c,PT_1		; (12/7)
-	ld (de),a		; (7)
-	jr PT_0			; (12)
-PT_1:	ld a,_1			; (7) Could use inc but ld balances time
-	ld (de),a		; (7)
-PT_0:	inc de			; (6)
+	;; Clear in-game timer
+	ld de,DISPLAY+20*33+24	; (10)
+	call BLANK_CLOCK	; (149)
 	
-	;; Print it
-	call PRINT_HL
+	;; Print time to solve the grid
+ 	ld de,DISPLAY+21*33+17	; (10)
+	call PRINT_CLOCK	; (426)
 
 	;; Advance to next game step
 	pop de			; (10)
 	pop hl			; (10)
-	inc hl
+	inc hl			; (6)
 	push hl			; (11)
 	push de			; (11)
-	
-	ret
+
+	;; Wait until end of V. cycle
+	ld b,0x30		; (7)
+PT_WAIT:
+	djnz PT_WAIT
+
+	ret			; (10)
 	
 	;; ----------------------------------------------------------------
 	;; Wait for no key
@@ -1182,3 +1202,148 @@ DIVIDEME:
         ld   (de),a
         inc  de
         ret
+
+	;; ----------------------------------------------------------------
+	;; Reset clock to zero (e.g., ready for new game)
+	;;
+	;; On entry:
+	;;
+	;; On exit:
+	;;     a - corrupted
+	;;
+	;; Timing:
+	;;     53 T states
+	;; ----------------------------------------------------------------
+RESET_CLOCK:
+	xor a			; (4)
+	ld (CLOCK),a		; (13)
+	ld (CLOCK+1),a		; (13)
+	ld (CLOCK+2),a		; (13)
+
+	ret			; (10)
+	
+	;; ----------------------------------------------------------------
+	;; Increment clock by two (assumed to be 2 100ths of a second)
+	;;
+	;; On entry:
+	;;
+	;; On exit:
+	;;     a - corrupted
+	;;     hl - corrupted
+	;;
+	;; Timing:
+	;;     107 T states
+	;; ----------------------------------------------------------------
+INC_CLOCK:
+	ld hl,CLOCK		; (10)
+
+	;; Low byte
+	ld a,(hl)		; (7)
+	add a,0x02		; (7)
+	daa			; (4)
+	ld (hl),a		; (7)
+
+	;; Middle byte
+	inc hl			; (6)
+	ld a,(hl)		; (7)
+	adc a,0x00		; (7)
+	daa			; (4)
+	ld (hl),a		; (7)
+	inc hl			; (6)
+
+	;; High byte
+	ld a,(hl)		; (7)
+	adc a,0x00		; (7)
+	daa			; (4)
+	ld (hl),a		; (7)
+
+	ret			; (10)
+	
+
+	;; ----------------------------------------------------------------
+	;; Print clock (with two d.p.)
+	;;
+	;; On entry:
+	;;     de - screen address to which to print (assumed to be far
+	;;          enough away from right-hand boundary)
+	;; 
+	;; On exit:
+	;;     a - corrupted
+	;;     de - corrupted
+	;;     hl - corrupted
+	;;
+	;; Timing:
+	;;     409 T states
+	;; ----------------------------------------------------------------
+PRINT_CLOCK:
+	ld hl,CLOCK+2		; (10) High digits of timer
+	ld a,(hl)		; (7)
+	call PR_DIGITS		; (114)
+
+	dec hl
+	ld a,(hl)		; (7)
+	call PR_DIGITS		; (114)
+
+	ld a,_FULLSTOP		; (7)
+	ld (de),a		; (7)
+	inc de			; (6)
+
+	dec hl			; (6)
+	ld a,(hl)		; (7)
+	call PR_DIGITS		; (114)
+
+	ret			; (10)
+
+	;; ----------------------------------------------------------------
+	;; Print binary coded two-digit decimal in A
+	;;
+	;; On entry:
+	;;     a - contains two-digit decimal
+	;;     de - contains screen address to print to
+	;; 
+	;; On exit:
+	;;     a,b - corrupted
+	;;     de - screen address of next character
+	;;
+	;; Timing:
+	;;     97 T states
+	;; ----------------------------------------------------------------
+PR_DIGITS:
+	ld b,a			; (4)
+	srl a			; (8)
+	srl a			; (8)
+	srl a			; (8)
+	srl a			; (8)
+	add a, _0		; (7)
+	ld (de),a		; (7)
+	inc de			; (6)
+	ld a,b			; (4)
+	and 0x0F		; (7)
+	add a, _0		; (7)
+	ld (de),a		; (7)
+	inc de			; (6)
+
+	ret			; (10)
+
+	;; ----------------------------------------------------------------
+	;; Clear clock -- print seven spaces to blank out clock
+	;;
+	;; On entry:
+	;;   de - Address of start of clock
+	;;
+	;; On exit:
+	;;
+	;; Timing:
+	;;     129 T states
+	;; ----------------------------------------------------------------
+BLANK_CLOCK:	
+	ld a, _SPACE		; (7)
+	ld b,7			; (7)
+
+	;; T = 6*26+21 = 105
+BC_LOOP:
+	ld (de),a		; (7)
+	inc de			; (6)
+	djnz BC_LOOP		; (13/8)
+
+	ret			; (10)
