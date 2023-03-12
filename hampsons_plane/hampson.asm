@@ -563,11 +563,12 @@ WK_DUMMY:
 	;;
 	;; On exit:
 	;;     AF, BC, DE, HL corrupted
+	;;     (COORD) contains first digit of selected coordinate
 	;;
 	;; Timing
 	;;     1,271 if 1 pressed
 	;;     1,278 if 0 pressed
-	;;     1,278 if no key pressed
+	;;     1,278 if no key pressed	
 	;; ----------------------------------------------------------------
 GET_ROW_1:
 	;; Advance timer
@@ -632,6 +633,16 @@ G1_WAIT:
 
 	;; ----------------------------------------------------------------
 	;; Read second coordinate of row id
+	;;
+	;; On entry:
+	;;
+	;; On exit:
+	;;     AF, BC, DE, HL corrupted
+	;;     (COORD) contains the selected coordinate
+	;;
+	;; Timing
+	;;     1,276 if number pressed
+	;;     1,281 if no key pressed	
 	;; ----------------------------------------------------------------
 GET_ROW_0:
 	;; Advance timer
@@ -663,20 +674,19 @@ GET_ROW_0:
 	push hl			; (11)
 	push de			; (11)
 
-	;; Need 1283-515 T states
-	ld b,0x3B
+	;; Wait (756)
+	ld b,0x3A		; (7)
 G0_LOOP:
 	djnz G0_LOOP
 
-	ret
+	ret			; (10)
 	
 G0_NO_KEY:
-
-	;; 414 +
 	ld de, DISPLAY+20*33+24	; (10)
 	call PRINT_CLOCK	; (426)
 
-	ld b, 0x21
+	;; Wait (418)
+	ld b, 0x20		; (7)
 G0_LOOP_2:
 	djnz G0_LOOP_2
 	
@@ -687,10 +697,13 @@ G0_LOOP_2:
 	;; ----------------------------------------------------------------
 	;; On entry:
 	;;     (COORD) - user-input coordinate
+	;; 
 	;; On exit:
-	;;
+	;;    af, bc, de, hl - corrupted
+	;; 
 	;; Timing:
-	;;     1,364 T states
+	;;     1,282 T states, if valid move
+	;;     1,279 T states, if not a valid move
 	;; ----------------------------------------------------------------
 FLIP_IT_1:
 	;; Advance timer
@@ -721,7 +734,7 @@ FLIP_IT_1:
 	push de			; (11)
 
 	;; Wait until end of V. Sync
-	ld b,0x29		; (7)
+	ld b,0x2B		; (7)
 FI1_WAIT:
 	djnz FI1_WAIT		; (13/8)
 	
@@ -737,27 +750,27 @@ FI1_INVALID:
 	push de			; (11)
 
 	;; Delay until end of V. Sync signal
+	;; (1029)
 	ld b, 0x4F
 FI1_WAIT_2:
 	djnz FI1_WAIT_2
 
-	ret
+	ret			; (10)
 	
 	;; ----------------------------------------------------------------
 	;; Flip 3x3 tile based on user-inputted coordinate (in COORD)
 	;; ----------------------------------------------------------------
 	;; On entry:
 	;;     (COORD) - user-input coordinate
+	;; 
 	;; On exit:
+	;;    af, bc, de, hl - corrupted
 	;;
 	;; Timing:
-	;;     1,364 T states
+	;;     1,276 T states
 	;; ----------------------------------------------------------------
 FLIP_IT_2:
 	;; Advance timer
-	;; ld hl,(FRAME)		; (16)
-	;; inc hl			; (6)
-	;; ld (FRAME),hl		; (16)
 	call INC_CLOCK		; (124)
 
 	;; Retrieve coordinate into BC
@@ -779,8 +792,8 @@ FLIP_IT_2:
 	push hl			; (11)
 	push de			; (11)
 
-	;; Wait until end of V. Sync
-	ld b,0x11		; (7)
+	;; Wait until end of V. Sync (249)
+	ld b,0x13		; (7)
 FI2_WAIT:
 	djnz FI2_WAIT		; (13/8)
 	
@@ -866,7 +879,7 @@ DONE_MSG:
 	;; Print time taken to solve the grid
 	;;
 	;; Timing:
-	;;     1,285 T states
+	;;     1,279 T states
 	;; ----------------------------------------------------------------
 PRINT_TIME:
 	;; Clear in-game timer
@@ -892,7 +905,15 @@ PT_WAIT:
 	ret			; (10)
 	
 	;; ----------------------------------------------------------------
-	;; Wait for no key
+	;; Wait for key
+	;;
+	;; On entry:
+	;;
+	;; On exit:
+	;;
+	;; Timing:
+	;;     1,275 - if key pressed
+	;;     1,274 - if no key pressed
 	;; ----------------------------------------------------------------
 RESTART_GAME:
 	;; Check for no key pressed
@@ -914,31 +935,33 @@ RESTART_GAME:
 	push hl			; (11)
 	push de			; (11)
 
-	;; Wait 1,283 - 821 - 10 = 452
-	ld b, 0x23
+	;; Wait (444)
+	ld b, 0x22		; (7)
 RG_DUMMY:
-	;; 
-	djnz RG_DUMMY
+	djnz RG_DUMMY		; (13/8)
 
-	ret
+	ret			; (10)
 
-RG_NO_KEY:
-	ld b,0x28
+RG_NO_KEY:		
+	;; Wait (509)
+	ld b,0x27		; (7)
 RG_LOOP:	
-	djnz RG_LOOP
+	djnz RG_LOOP		; (13/8)
 	
 	ret			; (10)
 	
 	;; ----------------------------------------------------------------
 	;; Convert grid coordinate into screen address
-	;; ----------------------------------------------------------------
+	;; 
 	;; On entry:
 	;;     b - row number (0...15)
 	;;     c - column number (0...25)
+	;; 
 	;; On exit:
 	;;     hl - screen address of cell at (b-1,c-1) -- that is top-left
 	;;          of 3x3 tile block
 	;;     bc,de,af - corrupted
+	;; 
 	;; Timing:
 	;;     458 T states
 	;; ----------------------------------------------------------------
@@ -1157,17 +1180,19 @@ F2KEYS:	ld a,_SPACE		; (4) Load space char
 	
 	ret	  		; (10)
 
-	;;
+	;; ----------------------------------------------------------------
 	;; Simple Random Number Generator
 	;;
 	;; On entry:
 	;;      
 	;; On exit:
-	;; 	a  - random number
-	;;	de - corrupted
-	;; 	hl - corrupted
+	;;     a  - random number
+	;;     de - corrupted
+	;;     hl - corrupted
 	;;
-	;; Timing: 81 T-states
+	;; Timing:
+	;;     81 T-states
+	;; ----------------------------------------------------------------
 RAND:	ld hl,(SEED)		; (16)
 
 	ld a,r			; (9)
@@ -1184,35 +1209,7 @@ RAND:	ld hl,(SEED)		; (16)
 SEED:	dw 0x0000
 
 END:	
-
 	
-	;; ----------------------------------------------------------------
-	;; Print contents of HL to address held in DE
-	;; ----------------------------------------------------------------
-PRINT_HL:
-	ld   bc,-10000
-        call ONEDIGIT
-        ld   bc,-1000
-        call ONEDIGIT
-        ld   bc,-100
-        call ONEDIGIT
-	ld a,_FULLSTOP
-	ld (de),a
-	inc de
-        ld   c,-10
-        call ONEDIGIT
-        ld   c,b
-ONEDIGIT:
-	ld   a,_0-1
-DIVIDEME:
-	inc  a
-        add  hl,bc
-        jr   c,DIVIDEME
-        sbc  hl,bc
-        ld   (de),a
-        inc  de
-        ret
-
 	;; ----------------------------------------------------------------
 	;; Reset clock to zero (e.g., ready for new game)
 	;;
