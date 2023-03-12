@@ -91,12 +91,13 @@ V_OFF:	out (0xFE),a		; Turn off vertical sync generation
 JUMP_TO_IT:
 	jp (hl)			; (4)
 
+	;; Game sequence
 JUMP_TABLE:
-	dw NEW_GAME		; 1244 T states
-	dw FLIP_TILE_1		; ??? T states
-	dw FLIP_TILE_2		; ??? T states
-	dw REQ_COORD		; 1283 T states
-	dw GET_COL		; 1283--1287 T states
+	dw NEW_GAME		;
+	dw FLIP_TILE_1		;
+	dw FLIP_TILE_2		;
+	dw REQ_COORD		;
+	dw GET_COL		;
 	dw WAIT_NO_KEY		;
 	dw GET_ROW_1		;
 	dw WAIT_NO_KEY		;
@@ -191,7 +192,7 @@ NG_NN_LOOP:
 
 	ret			; (10)
 	
-SKILL_MSG:
+SKILL_MSG:			; Ask player to choose difficulty level
 	db _SPACE, _C, _H, _O, _O, _S, _E, _SPACE
 	db _S, _K, _I, _L, _L, _SPACE, _L, _E
 	db _V, _E, _L, _SPACE, _LEFTPARENTH, _1, _MINUS, _9
@@ -342,13 +343,178 @@ RC_LOOP:
 	
 	ret			; (10)
 
-COORD_MSG:
+COORD_MSG:			; Request next move
 	db _SPACE, _E, _N, _T, _E, _R, _SPACE, _M
 	db _O, _V, _E, _S, _SPACE, _LEFTPARENTH, _C, _O
 	db _L, _SPACE, _F, _I, _R, _S, _T, _RIGHTPARENTH
 	db _SPACE, _SPACE, _SPACE, _SPACE, _SPACE, _SPACE, _SPACE, _SPACE
 
 
+	;; ----------------------------------------------------------------
+	;; Read column reference
+	;; 
+	;; On entry:
+	;;
+	;; On exit:
+	;;     d - Column specified (or 0xFF, if no key pressed)
+	;;     af, c, de, hl - corrupted
+	;; 
+	;; Timing (aim for 1,283 T states):
+	;;     1,274 (no key)
+	;;     1,283 (key)
+	;; ----------------------------------------------------------------
+
+GET_COL:
+	;; Advance timer
+	call INC_CLOCK		; (124)
+	
+	;; Scan keyboard using brute force check for each key
+	;; to ensure consistent timing
+
+	;; Row 1 left (124...126)
+	ld d, 0xFF		; (7)
+	ld bc, 0xFBFE		; (10)
+	in a,(c)		; (12)
+	cp 0x7E			; (7)
+	jr nz, NO_Q		; (12/7)
+	ld d, _Q		; (7)
+NO_Q:	cp 0x7D			; (7)
+	jr nz, NO_W		; (12/7)
+	ld d, _W		; (7)
+NO_W:	cp 0x7B			; (7)
+	jr nz, NO_E		; (12/7)
+	ld d, _E		; (7)
+NO_E:	cp 0x77			; (7)
+	jr nz, NO_R		; (12/7)
+	ld d, _R		; (7)
+NO_R:	cp 0x6F			; (7)
+	jr nz, NO_T		; (12/7)
+	ld d, _T		; (7)
+
+	;; Row 1 right (117...119)
+NO_T:	ld bc, 0xDFFE		; (10)
+	in a,(c)		; (12)
+	cp 0x7E			; (7)
+	jr nz, NO_P		; (12/7)
+	ld d, _P		; (7)
+NO_P:	cp 0x7D			; (7)
+	jr nz, NO_O		; (12/7)
+	ld d, _O		; (7)
+NO_O:	cp 0x7B			; (7)
+	jr nz, NO_I		; (12/7)
+	ld d, _I		; (7)
+NO_I:	cp 0x77			; (7)
+	jr nz, NO_U		; (12/7)
+	ld d, _U		; (7)
+NO_U:	cp 0x6F			; (7)
+	jr nz, NO_Y		; (12/7)
+	ld d, _Y		; (7)
+
+	;; Row 2 left (117...119)
+NO_Y:	ld bc, 0xFDFE		; (10)
+	in a,(c)		; (12)
+	cp 0x7E			; (7)
+	jr nz, NO_A		; (12/7)
+	ld d, _A		; (7)
+NO_A:	cp 0x7D			; (7)
+	jr nz, NO_S		; (12/7)
+	ld d, _S		; (7)
+NO_S:	cp 0x7B			; (7)
+	jr nz, NO_D		; (12/7)
+	ld d, _D		; (7)
+NO_D:	cp 0x77			; (7)
+	jr nz, NO_F		; (12/7)
+	ld d, _F		; (7)
+NO_F:	cp 0x6F			; (7)
+	jr nz, NO_G		; (12/7)
+	ld d, _G		; (7)
+
+	;; Row 2 right (98...100)
+NO_G:	ld bc, 0xBFFE		; (10)
+	in a,(c)		; (12)
+	cp 0x7D			; (7)
+	jr nz, NO_L		; (12/7)
+	ld d, _L		; (7)
+NO_L:	cp 0x7B			; (7)
+	jr nz, NO_K		; (12/7)
+	ld d, _K		; (7)
+NO_K:	cp 0x77			; (7)
+	jr nz, NO_J		; (12/7)
+	ld d, _J		; (7)
+NO_J:	cp 0x6F			; (7)
+	jr nz, NO_H		; (12/7)
+	ld d, _H		; (7)
+
+	;; Row 3 left (98...100)
+NO_H:	ld bc, 0xFEFE		; (10)
+	in a,(c)		; (12)
+	cp 0x7D			; (7)
+	jr nz, NO_Z		; (12/7)
+	ld d, _Z		; (7)
+NO_Z:	cp 0x7B			; (7)
+	jr nz, NO_X		; (12/7)
+	ld d, _X		; (7)
+NO_X:	cp 0x77			; (7)
+	jr nz, NO_C		; (12/7)
+	ld d, _C		; (7)
+NO_C:	cp 0x6F			; (7)
+	jr nz, NO_V		; (12/7)
+	ld d, _V		; (7)
+
+	;; Row 3 right (79...81)
+NO_V:	ld bc, 0x7FFE		; (10)
+	in a,(c)		; (12)
+	cp 0x7B			; (7)
+	jr nz, NO_M		; (12/7)
+	ld d, _M		; (7)
+NO_M:	cp 0x77			; (7)
+	jr nz, NO_N		; (12/7)
+	ld d, _N		; (7)
+NO_N:	cp 0x6F			; (7)
+	jr nz, NO_B		; (12/7)
+	ld d, _B		; (7)
+
+	;; If key pressed, write to screen and store
+	;; (No key - 30; Key - 52)
+NO_B:	ld hl, DISPLAY+33*21+26	; (10)
+	ld a,d			; (4)
+	inc d			; (4)
+	jr z, GC_NO_KEY		; (12/7)
+	ld (hl),a		; (7)
+	sub a, _9+1		; (7)
+	ld (COORD),a		; (13)
+
+	;; Advance game counter (48)
+	pop de			; (10)
+	pop hl			; (10)
+	inc hl			; (6)
+	push hl			; (11)
+	push de			; (11)
+
+	jr GC_KEY		; (7)
+	
+GC_NO_KEY:	
+	;; 787 so far
+	ld de, DISPLAY+20*33+24	; (10)
+	call PRINT_CLOCK	; (426)
+
+	;; Wait (49)
+	nop
+	nop
+	ld b,3
+GC_LOOP_1:
+	djnz GC_LOOP_1
+	
+	ret			; (10)
+	
+GC_KEY:
+	;; Wait (409)
+	ld b, 0x1F		; (7)
+GC_LOOP2:
+	djnz GC_LOOP2		; (13/8)
+	
+	ret			; (10)
+	
 	;; ----------------------------------------------------------------
 	;; Wait until no key is being pressed
 	;;
@@ -511,164 +677,6 @@ G0_NO_KEY:
 	ld b, 0x21
 G0_LOOP_2:
 	djnz G0_LOOP_2
-	
-	ret			; (10)
-	
-	;; ----------------------------------------------------------------
-	;; Read column reference
-	;; ----------------------------------------------------------------
-	;; 763 + ??? T-states (aim for 1,283 T states)
-GET_COL:
-	;; Advance timer
-	call INC_CLOCK		; (124)
-	
-	;; 589--591 T-states
-	ld d, 0xFF		; (7)
-	ld bc, 0xFBFE		; (10)
-	in a,(c)		; (12)
-
-	;; (95..97)
-	cp 0x7E			; (7)
-	jr nz, NO_Q		; (12/7)
-	ld d, _Q		; (7)
-NO_Q:	cp 0x7D			; (7)
-	jr nz, NO_W		; (12/7)
-	ld d, _W		; (7)
-NO_W:	cp 0x7B			; (7)
-	jr nz, NO_E		; (12/7)
-	ld d, _E		; (7)
-NO_E:	cp 0x77			; (7)
-	jr nz, NO_R		; (12/7)
-	ld d, _R		; (7)
-NO_R:	cp 0x6F			; (7)
-	jr nz, NO_T		; (12/7)
-	ld d, _T		; (7)
-
-	;; (22)
-NO_T:	ld bc, 0xDFFE		; (10)
-	in a,(c)		; (12)
-
-	;; (95...97)
-	cp 0x7E			; (7)
-	jr nz, NO_P		; (12/7)
-	ld d, _P		; (7)
-NO_P:	cp 0x7D			; (7)
-	jr nz, NO_O		; (12/7)
-	ld d, _O		; (7)
-NO_O:	cp 0x7B			; (7)
-	jr nz, NO_I		; (12/7)
-	ld d, _I		; (7)
-NO_I:	cp 0x77			; (7)
-	jr nz, NO_U		; (12/7)
-	ld d, _U		; (7)
-NO_U:	cp 0x6F			; (7)
-	jr nz, NO_Y		; (12/7)
-	ld d, _Y		; (7)
-
-	;; (22)
-NO_Y:	ld bc, 0xFDFE		; (10)
-	in a,(c)		; (12)
-
-	;; (95...97)
-	cp 0x7E			; (7)
-	jr nz, NO_A		; (12/7)
-	ld d, _A		; (7)
-NO_A:	cp 0x7D			; (7)
-	jr nz, NO_S		; (12/7)
-	ld d, _S		; (7)
-NO_S:	cp 0x7B			; (7)
-	jr nz, NO_D		; (12/7)
-	ld d, _D		; (7)
-NO_D:	cp 0x77			; (7)
-	jr nz, NO_F		; (12/7)
-	ld d, _F		; (7)
-NO_F:	cp 0x6F			; (7)
-	jr nz, NO_G		; (12/7)
-	ld d, _G		; (7)
-
-	;; (22)
-NO_G:	ld bc, 0xBFFE		; (10)
-	in a,(c)		; (12)
-
-	;; (76...78)
-	cp 0x7D			; (7)
-	jr nz, NO_L		; (12/7)
-	ld d, _L		; (7)
-NO_L:	cp 0x7B			; (7)
-	jr nz, NO_K		; (12/7)
-	ld d, _K		; (7)
-NO_K:	cp 0x77			; (7)
-	jr nz, NO_J		; (12/7)
-	ld d, _J		; (7)
-NO_J:	cp 0x6F			; (7)
-	jr nz, NO_H		; (12/7)
-	ld d, _H		; (7)
-
-	;; (22)
-NO_H:	ld bc, 0xFEFE		; (10)
-	in a,(c)		; (12)
-
-	;; (76...78)
-	cp 0x7D			; (7)
-	jr nz, NO_Z		; (12/7)
-	ld d, _Z		; (7)
-NO_Z:	cp 0x7B			; (7)
-	jr nz, NO_X		; (12/7)
-	ld d, _X		; (7)
-NO_X:	cp 0x77			; (7)
-	jr nz, NO_C		; (12/7)
-	ld d, _C		; (7)
-NO_C:	cp 0x6F			; (7)
-	jr nz, NO_V		; (12/7)
-	ld d, _V		; (7)
-
-	;; (22)
-NO_V:	ld bc, 0x7FFE		; (10)
-	in a,(c)		; (12)
-
-	;; (57..59)
-	cp 0x7B			; (7)
-	jr nz, NO_M		; (12/7)
-	ld d, _M		; (7)
-NO_M:	cp 0x77			; (7)
-	jr nz, NO_N		; (12/7)
-	ld d, _N		; (7)
-NO_N:	cp 0x6F			; (7)
-	jr nz, NO_B		; (12/7)
-	ld d, _B		; (7)
-
-	;; (No key - 30; Key - 52)
-NO_B:	ld hl, DISPLAY+33*21+26	; (10)
-	ld a,d			; (4)
-	inc d			; (4)
-	jr z, NO_KEY_PRESSED	; (12/7)
-	ld (hl),a		; (7)
-	sub a, _9+1		; (7)
-	ld (COORD),a		; (13)
-
-	;; (48)
-	pop de			; (10)
-	pop hl			; (10)
-	inc hl			; (6)
-	push hl			; (11)
-	push de			; (11)
-
-	jr KEY_PRESSED		; (7)
-	
-NO_KEY_PRESSED:	
-	;; 787 so far
-	ld de, DISPLAY+20*33+24	; (10)
-	call PRINT_CLOCK	; (426)
-
-	ld b,3
-KLOOP2:	djnz KLOOP2
-	
-	ret			; (10)
-	
-KEY_PRESSED:	
-	;; 7 + 8 +(N-1)*13
-	ld b, 0x1D		; (7)
-KLOOP1:	djnz KLOOP1		; (13/8)
 	
 	ret			; (10)
 	
