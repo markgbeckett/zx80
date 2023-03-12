@@ -363,7 +363,6 @@ COORD_MSG:			; Request next move
 	;;     1,274 (no key)
 	;;     1,283 (key)
 	;; ----------------------------------------------------------------
-
 GET_COL:
 	;; Advance timer
 	call INC_CLOCK		; (124)
@@ -524,14 +523,15 @@ GC_LOOP2:
 	;;     af, bc, de, hl - corrupted
 	;;
 	;; Timing:
-	;;     
+	;;     1,281 if key pressed
+	;;     1,279 if no key pressed
 	;; ----------------------------------------------------------------
 WAIT_NO_KEY:
 	;; Advance timer
 	call INC_CLOCK 		; (124)
 
-	;; Check for key-press (729)
-	call KSCAN		; (712 + 17)
+	;; Check for key-press
+	call KSCAN		; (729)
 
 	;; Check if HL = 0xFFFF, which indicates no key pressed (14)
 	inc hl			; (6) HL = 0 ?
@@ -541,7 +541,7 @@ WAIT_NO_KEY:
 	ld b,0x1E		; (7) Default wait time (used at end of
 	                        ;     routine
 	jr nz, WK_DUMMY 	; (12/7)
-	ld b,0x19		; (7) Reduce wait time
+	ld b,0x1A		; (7) Reduce wait time
 	
 	;;  No key pressed, so advance to next game step
 	pop de			; (10)
@@ -555,7 +555,7 @@ WK_DUMMY:
 	djnz WK_DUMMY		; (13/8)
 
 	ret			; (10)
-	
+
 	;; ----------------------------------------------------------------
 	;; Get first digit of row coordinate (0 or 1)
 	;;
@@ -565,7 +565,9 @@ WK_DUMMY:
 	;;     AF, BC, DE, HL corrupted
 	;;
 	;; Timing
-	;; 
+	;;     1,271 if 1 pressed
+	;;     1,278 if 0 pressed
+	;;     1,278 if no key pressed
 	;; ----------------------------------------------------------------
 GET_ROW_1:
 	;; Advance timer
@@ -577,35 +579,35 @@ GET_ROW_1:
 	cp 0x7E			; (7)
 
 	;; Skip forward if '1' not pressed
-	jr nz, GR_NOT_1		; (12/7)
+	jr nz, G1_NOT_1		; (12/7)
 
 	;; Set A to partial row number and C to corresponding digit
 	ld a,0x0A		; (7)
 	ld c,_1			; (7)
 
 	;; Set length of wait loop
-	ld b, 0x4D		; (7)
+	ld b, 0x2C		; (7)
 
-	jr GR_DONE		; (12)
+	jr G1_DONE		; (12)
 	
-GR_NOT_1:
+G1_NOT_1:
 	;; Read key 6,...,0 (29)
 	ld bc, 0xEFFE		; (10)
 	in a,(c)		; (12)
 	cp 0x7E			; (7)
 
 	;; Skip forward if '0' not pressed
-	ld b,0x2F		; (7) Set wait value
-	jr nz, GR_WAIT		; (12/7)
+	ld b,0x30		; (7) Set wait value
+	jr nz, G1_WAIT		; (12/7)
 
 	;; Set A to partial row number and C to corresponding digit
 	xor a			; (4)
 	ld c,_0			; (7)
 
 	;; Set length of wait loop
-	ld b,0x4B		; (7)
+	ld b,0x2A		; (7)
 
-GR_DONE:
+G1_DONE:
 	;; Valid digit has been selected, so store it and
 	;; proceed to next step
 	ld (COORD+1),a		; (13) Store partial coordinate
@@ -620,8 +622,8 @@ GR_DONE:
 	push de			; (11)
 
 	;; Wait until end of V. Sync (B set previously)
-GR_WAIT:
-	djnz GR_WAIT
+G1_WAIT:
+	djnz G1_WAIT
 
 	ld de, DISPLAY+20*33+24	; (10)
 	call PRINT_CLOCK	; (426)
