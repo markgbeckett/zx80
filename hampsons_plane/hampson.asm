@@ -14,7 +14,7 @@ DF_END:	equ 0x4010		; System variable holding end of display
 FRAME:	equ 0x401E		; System variable holding clock
 
 
-	include "..\zx80_chars.asm"
+	include "..\utilities\zx80_chars.asm"
 
 	org 0x6000
 DISPLAY:

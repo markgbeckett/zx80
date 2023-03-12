@@ -63,4 +63,5 @@ _W:			equ $3C
 _X:			equ $3D
 _Y:			equ $3E
 _Z:			equ $3F
+_EOL:			equ $76
 _INVSPACE:		equ $80
