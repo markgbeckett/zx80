@@ -1123,64 +1123,6 @@ LABEL:	rlc b			; (8)
 	ret			; (10)
 	
 	;; ----------------------------------------------------------------
-	;; Translate key coordinate into character
-	;; ----------------------------------------------------------------
-	;; On entry:
-	;; B - column id from KSCAN
-	;; C - row id from KSCAN
-	;;
-	;; On exit:
-	;; A - character of key pressed (or SPACE)
-	;; bc, de, hl - corrupted
-	;; ----------------------------------------------------------------
-FINDCHR:
-	;; Compute offset for lookup based on whether Shift was pressed
-	;; (indicated by bit 0 of B being reset).
- 	sra b			; (8) Move shift into carry
- 	sbc a,a			; (4) If shifted, A=0x00, else A=0xFF
- 	or 0x26			; (7) If shifted, A=0x26, else A=0xFF (-1)
-
-	ld l,5			; (7) Set step size for row search to 5,
-	                        ; as there are 5 characters per row
- 	sub l			; (4) Initial correction to make loop work
-
-	;; This loop is a search which is used twice. On first pass, it is 
-	;; used to identify offset to row data, and then, on second pass,
-	;; to add offset to column data. The current offset is kep in A
-	;; (which was set based on Shift status, above)
-FLOOP:	add a,l			; (4) Advance offset pointer (by 5 or 1)
- 	scf			; (4) Ensure left-most bit will be one
-	rr c			; (8) Move next search bit int carry flag
-	                        ; It will be zero (i.e., NC) if key pressed
-	jr c, FLOOP		; (12/7) Carry set implies no key, so continue
-
-	;; At this point, C will be 0xFF, if only one row/ column had key press
-	inc c			; (4) C should be 0x00, if only key pressed
-	jr nz, F2KEYS		; (12/7) Exit if not
-
-	ld c,b			; (4) Move column id into c for second search
-	dec l			; (4) If second search done, L will be zero
-	ld l,01			; (7) If not, then step imcrement is 1 
-	                        ;     per column for second search
-	
-	jr nz, FLOOP		; (12/7) Repeat, if second loop
-
-	;; Otherwise compute address in table
-	ld hl, KTABLE		; (10)
- 	ld d,0x00		; (7)
-	ld e,a			; (4)
-	add hl,de		; (11)
-
-	ld a, (hl)		; (7)
-	
-	ret			; (10)
-
-	;; If more than one key is pressed (not including Shift) then ignore.
-F2KEYS:	ld a,_SPACE		; (4) Load space char
-	
-	ret	  		; (10)
-
-	;; ----------------------------------------------------------------
 	;; Simple Random Number Generator
 	;;
 	;; On entry:
