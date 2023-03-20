@@ -17,10 +17,7 @@ FRAME:	equ 0x401E		; System variable holding clock
 	include "..\utilities\zx80_chars.asm"
 
 	org 0x6000
-DISPLAY:
-	;; Locate display memory at start of game code
-	include "hampson_gameboard.asm"
-	
+
 	;; Entry point from BASIC
 START:
 	;; Point system variables to display info, so ROM
@@ -35,6 +32,9 @@ START:
 	;; Set random-number seed based on FRAME
 	ld hl,(FRAME)
 	ld (SEED),hl
+
+	;; Initial display
+	call PRINT_GRID
 	
 	;; Initialise game cycle
 	ld hl,0x0000
@@ -1296,3 +1296,180 @@ BC_LOOP:
 	djnz BC_LOOP		; (13/8)
 
 	ret			; (10)
+
+
+	;; ----------------------------------------------------------------
+	;; Print game grid
+	;; ----------------------------------------------------------------
+PRINT_GRID:
+	ld hl, DISPLAY
+	ld (hl),_EOL
+	inc hl
+	
+	call PRINT_CO_ROW
+	call PRINT_BO_ROW
+
+	ld bc,0x1001
+PG_LOOP:
+	push bc
+	call PRINT_GR_ROW
+	pop bc
+	
+	ld a,c
+	add a,0x01
+	daa
+	ld c,a
+	
+	djnz PG_LOOP
+	
+	call PRINT_BO_ROW
+	call PRINT_CO_ROW
+
+	ld b, 0x04
+PG_LOOP_2:
+	push bc
+	call PRINT_BL_ROW
+	pop bc
+	djnz PG_LOOP_2
+
+	ret
+
+	
+	;; ----------------------------------------------------------------
+	;; Print coordinate row
+	;;
+	;; On entry:
+	;;   hl - Address in display buffer of start of row
+	;;
+	;; On exit:
+	;;   hl - Address in display buffer of next row
+	;; ----------------------------------------------------------------
+PRINT_CO_ROW:
+	ld (hl), _CHEQUERBOARD
+	inc hl
+	ld (hl), _CHEQUERBOARD
+	inc hl
+	ld (hl), _CHEQUERBOARD
+	inc hl
+
+	ld b,26
+	ld a,_A
+PC_LOOP:
+	ld (hl),a
+	inc a
+	inc hl
+	djnz PC_LOOP
+
+	ld (hl), _CHEQUERBOARD
+	inc hl
+	ld (hl), _CHEQUERBOARD
+	inc hl
+	ld (hl), _CHEQUERBOARD
+	inc hl
+
+	ld (hl), _EOL
+	inc hl
+
+	ret
+
+	;; ----------------------------------------------------------------
+	;; Print grid-edge row
+	;; 
+	;; On entry:
+	;;   hl - Address in display buffer of start of row
+	;;
+	;; On exit:
+	;;   hl - Address in display buffer of next row
+	;; ----------------------------------------------------------------
+PRINT_BO_ROW:
+	ld (hl), _CHEQUERBOARD
+	inc hl
+	ld (hl), _CHEQUERBOARD
+	inc hl
+
+	ld b, 28
+BO_LOOP:
+	ld (hl),_SPACE+0x80
+	inc hl
+	djnz BO_LOOP
+	
+
+	ld (hl), _CHEQUERBOARD
+	inc hl
+	ld (hl), _CHEQUERBOARD
+	inc hl
+
+	ld (hl),_EOL
+	inc hl
+	
+	ret
+
+	;; ----------------------------------------------------------------
+	;; Print grid row
+	;; 
+	;; On entry:
+	;;   hl - Address in display buffer of start of row
+	;;   c  - row coordinate
+	;;
+	;; On exit:
+	;;   hl - Address in display buffer of next row
+	;; ----------------------------------------------------------------
+PRINT_GR_ROW:
+	ld de, 0x01E		; Row offset between left and right coordinate
+	
+	ld a,c			; Transfer row coordinate to A
+	and 0xF0		; Isolate high digit
+
+	jr z, GR_CONT
+	ld a, 0x01
+GR_CONT:
+	add a,_0
+
+	ld (hl),a
+	add hl,de
+	ld (hl),a
+	sbc hl,de
+	inc hl
+	
+	ld a,c			; Isolate low digit
+	and 0x0F
+	add a,_0
+
+	ld (hl),a
+	add hl,de
+	ld (hl),a
+	sbc hl,de
+	inc hl
+
+	ld b,28
+GR_LOOP:
+	ld (hl),_SPACE+0x80
+	inc hl
+	djnz GR_LOOP
+	
+	
+	inc hl
+	inc hl
+
+	ld (hl),_EOL
+	inc hl
+	
+	ret
+
+	;; ----------------------------------------------------------------
+	;; Print blank row
+	;; ----------------------------------------------------------------
+PRINT_BL_ROW:
+	ld b, 0x20
+BL_LOOP:
+	ld (hl), _SPACE
+	inc hl
+	djnz BL_LOOP
+
+	ld (hl),_EOL
+	inc hl
+
+	ret
+
+DISPLAY:
+	
