@@ -16,17 +16,46 @@ FRAME:	equ 0x401E		; System variable holding clock
 
 	include "..\utilities\zx80_chars.asm"
 
-	org 0x6000
+	org 0x4000		; Start of RAM on ZX80
+
+SYSVAR:	
+	db 0x00			; ERRNO
+	db 0x04			; FLAGS
+	dw 0x0000		; Current statement
+	dw E_LINE		; Insertion point in E_LINE
+	dw 0x006E		; Current line
+	dw VARS
+	dw E_LINE		; Start of edit line
+	dw D_FILE		; Start of D_FILE
+	dw D_FILE+0x21*0x17+01	; DF_EA
+	dw END			; DF_END
+	db 0x02			; Number of lines in lower screen
+	dw 0x006E		; First line on screen
+	dw 0x0000
+	dw 0x0000
+	db 0x00
+	dw 0x079C		; Next item in syntax table
+	dw 0x0000		; SEED (random-number gen.)
+	dw 0x0000		; FRAMES
+	dw 0x0000
+	dw 0x3800		; Last value
+	db 0x21			; Next char posn
+	db 0x17			; Next row
+	dw 0xFFFF		; Next char
+	
+RAMBOT:
+LINE10:	db 0x00, 0x0A, 0xFE, _A ; 10 REM 
 
 	;; Entry point from BASIC
 START:
 	;; Point system variables to display info, so ROM
 	;; display-write routines work
-	ld hl, DISPLAY
+
+	ld hl, D_FILE
 	ld (DFILE), hl
-	ld hl, DISPLAY+0x21*0x17+01
+	ld hl, D_FILE+0x21*0x17+01
 	ld (DF_EA), hl
-	ld hl, DISPLAY+0x21*0x18+01
+	ld hl, D_FILE+0x21*0x18+01
 	ld (DF_END),hl
 
 	;; Set random-number seed based on FRAME
@@ -71,7 +100,7 @@ V_OFF:	out (0xFE),a		; Turn off vertical sync generation
 	ld a, 0xEC
 	ld b, 0x19
 
-	ld hl, DISPLAY+0x8000
+	ld hl, D_FILE+0x8000
 
 	call DISP_2		; Produce top border and main area
 
@@ -116,6 +145,8 @@ COORD:	dw 0x0000		; User-specified coordinate (or temp.
 COUNT:	dw 0x000		; Counter for randomising initial grid
 CLOCK:	ds 03			; 24-bit clock for game
 	
+LINE20:	db 0x76, 0x00, 0x14, 0xFE	; 20 REM 
+
 	;; ----------------------------------------------------------------
 	;; Start new game
 	;; ----------------------------------------------------------------
@@ -124,7 +155,7 @@ NEW_GAME:
 	;; Print message asking user to choose difficult level (613)
 	ld hl, SKILL_MSG	; (10)
 PROF:	ld bc, 0x001C		; (10)
-	ld de, DISPLAY+21*33+1	; (10)
+	ld de, D_FILE+21*33+1	; (10)
 	ldir			; ( = 27*21+16)
 
 	;; Read number from keyboard (268...270 T states)
@@ -142,7 +173,7 @@ PROF:	ld bc, 0x001C		; (10)
 	;; randomisation to do (28)
 	ld b,a			; (4)
 	add a,_0 		; (7)
-	ld (DISPLAY+21*33+27),a ; (13)
+	ld (D_FILE+21*33+27),a ; (13)
 	ld a,b			; (4)
 
 	;; Reset counter and set increment
@@ -274,6 +305,8 @@ F1_WAIT:
 
 	ret			; (10)
 
+LINE30:	db 0x76, 0x00, 0x1E, 0xFE	; 30 REM 
+
 	;; ----------------------------------------------------------------
 	;; Generate game board (1-iter), Part 2
 	;; ----------------------------------------------------------------
@@ -323,7 +356,7 @@ REQ_COORD:
 	;; Copy message to row 21 of display (613)
 	ld hl, COORD_MSG	; (10)
 	ld bc, 0x001E		; (10)
-	ld de, DISPLAY+21*33+1	; (10)
+	ld de, D_FILE+21*33+1	; (10)
 	ldir			; ( = 21*27+16)
 
 	;; Update game-sequence counter (48)
@@ -333,7 +366,7 @@ REQ_COORD:
 	push hl			; (11)
 	push de			; (11)
 
-	ld de, DISPLAY+20*33+24	; (10)
+	ld de, D_FILE+20*33+24	; (10)
 	call PRINT_CLOCK	; (426)
 	
 	;; Pad routine to fill V. Sync period (175)
@@ -348,6 +381,9 @@ COORD_MSG:			; Request next move
 	db _O, _V, _E, _S, _SPACE, _LEFTPARENTH, _C, _O
 	db _L, _SPACE, _F, _I, _R, _S, _T, _RIGHTPARENTH
 	db _SPACE, _SPACE, _SPACE, _SPACE, _SPACE, _SPACE, _SPACE, _SPACE
+
+
+LINE40:	db 0x76, 0x00, 0x28, 0xFE	; 40 REM 
 
 
 	;; ----------------------------------------------------------------
@@ -475,7 +511,7 @@ NO_N:	cp 0x6F			; (7)
 
 	;; If key pressed, write to screen and store
 	;; (No key - 30; Key - 52)
-NO_B:	ld hl, DISPLAY+33*21+26	; (10)
+NO_B:	ld hl, D_FILE+33*21+26	; (10)
 	ld a,d			; (4)
 	inc d			; (4)
 	jr z, GC_NO_KEY		; (12/7)
@@ -494,7 +530,7 @@ NO_B:	ld hl, DISPLAY+33*21+26	; (10)
 	
 GC_NO_KEY:	
 	;; 787 so far
-	ld de, DISPLAY+20*33+24	; (10)
+	ld de, D_FILE+20*33+24	; (10)
 	call PRINT_CLOCK	; (426)
 
 	;; Wait (49)
@@ -513,7 +549,9 @@ GC_LOOP2:
 	djnz GC_LOOP2		; (13/8)
 	
 	ret			; (10)
-	
+
+LINE50:	db 0x76, 0x00, 0x32, 0xFE	; 50 REM 
+
 	;; ----------------------------------------------------------------
 	;; Wait until no key is being pressed
 	;;
@@ -613,7 +651,7 @@ G1_DONE:
 	;; proceed to next step
 	ld (COORD+1),a		; (13) Store partial coordinate
 	ld a,c			; (4)  Get character code
-	ld (DISPLAY+21*33+27),a	; (13) Display digit
+	ld (D_FILE+21*33+27),a	; (13) Display digit
 	
 	;; Advance game sequence
 	pop de 			; (10)
@@ -626,7 +664,7 @@ G1_DONE:
 G1_WAIT:
 	djnz G1_WAIT
 
-	ld de, DISPLAY+20*33+24	; (10)
+	ld de, D_FILE+20*33+24	; (10)
 	call PRINT_CLOCK	; (426)
 
 	ret			; (10)
@@ -665,7 +703,7 @@ GET_ROW_0:
 	;; Print keypress
 	ld a,d			; (4)
 	add a, _0		; (7)
-	ld (DISPLAY+21*33+28),a	; (13)
+	ld (D_FILE+21*33+28),a	; (13)
 
 	;; Advance to next game step
 	pop de			; (10)
@@ -682,7 +720,7 @@ G0_LOOP:
 	ret			; (10)
 	
 G0_NO_KEY:
-	ld de, DISPLAY+20*33+24	; (10)
+	ld de, D_FILE+20*33+24	; (10)
 	call PRINT_CLOCK	; (426)
 
 	;; Wait (418)
@@ -757,6 +795,8 @@ FI1_WAIT_2:
 
 	ret			; (10)
 	
+LINE60:	db 0x76, 0x00, 0x3C, 0xFE	; 60 REM 
+
 	;; ----------------------------------------------------------------
 	;; Flip 3x3 tile based on user-inputted coordinate (in COORD)
 	;; ----------------------------------------------------------------
@@ -834,7 +874,7 @@ CHECK_SOLVED:
 	;; 802 T states
 	ld hl, DONE_MSG		; (10)
 	ld bc, 0x001D		; (10)
-	ld de, DISPLAY+21*33+1	; (10)
+	ld de, D_FILE+21*33+1	; (10)
 	ldir			; ( = 28*27+16)
 
 	;; Update game sequence counter to end-game
@@ -883,11 +923,11 @@ DONE_MSG:
 	;; ----------------------------------------------------------------
 PRINT_TIME:
 	;; Clear in-game timer
-	ld de,DISPLAY+20*33+24	; (10)
+	ld de,D_FILE+20*33+24	; (10)
 	call BLANK_CLOCK	; (149)
 	
 	;; Print time to solve the grid
- 	ld de,DISPLAY+21*33+17	; (10)
+ 	ld de,D_FILE+21*33+17	; (10)
 	call PRINT_CLOCK	; (426)
 
 	;; Advance to next game step
@@ -950,6 +990,8 @@ RG_LOOP:
 	
 	ret			; (10)
 	
+LINE70:	db 0x76, 0x00, 0x46, 0xFE	; 70 REM 
+
 	;; ----------------------------------------------------------------
 	;; Convert grid coordinate into screen address
 	;; 
@@ -966,7 +1008,7 @@ RG_LOOP:
 	;;     458 T states
 	;; ----------------------------------------------------------------
 COL2ADDR:	
-	ld hl,DISPLAY+3		; (10) Top, lefthand cormer of gameboard
+	ld hl,D_FILE+3		; (10) Top, lefthand cormer of gameboard
 	ld de,0x0021		; (10) Length of a screen row
 
 	;; Work out idle-time adjustment to make address calc fixed time
@@ -1150,8 +1192,6 @@ RAND:	ld hl,(SEED)		; (16)
 
 SEED:	dw 0x0000
 
-END:	
-	
 	;; ----------------------------------------------------------------
 	;; Reset clock to zero (e.g., ready for new game)
 	;;
@@ -1208,6 +1248,7 @@ INC_CLOCK:
 
 	ret			; (10)
 	
+LINE80:	db 0x76, 0x00, 0x50, 0xFE	; 80 REM 
 
 	;; ----------------------------------------------------------------
 	;; Print clock (with two d.p.)
@@ -1302,8 +1343,9 @@ BC_LOOP:
 	;; Print game grid
 	;; ----------------------------------------------------------------
 PRINT_GRID:
-	ld hl, DISPLAY
-	ld (hl),_EOL
+	ld hl, D_FILE
+	ld (hl),_EOL-1		; Done to avoid 0x76 in BASIC
+	inc (hl)
 	inc hl
 	
 	call PRINT_CO_ROW
@@ -1367,7 +1409,8 @@ PC_LOOP:
 	ld (hl), _CHEQUERBOARD
 	inc hl
 
-	ld (hl), _EOL
+	ld (hl), _EOL-1
+	inc (hl)
 	inc hl
 
 	ret
@@ -1399,7 +1442,8 @@ BO_LOOP:
 	ld (hl), _CHEQUERBOARD
 	inc hl
 
-	ld (hl),_EOL
+	ld (hl),_EOL-1
+	inc (hl)
 	inc hl
 	
 	ret
@@ -1451,7 +1495,8 @@ GR_LOOP:
 	inc hl
 	inc hl
 
-	ld (hl),_EOL
+	ld (hl),_EOL-1
+	inc (hl)
 	inc hl
 	
 	ret
@@ -1466,10 +1511,60 @@ BL_LOOP:
 	inc hl
 	djnz BL_LOOP
 
-	ld (hl),_EOL
+	ld (hl),_EOL-1
+	inc (hl)
 	inc hl
 
 	ret
 
-DISPLAY:
+;; 	db 0x76
+
+;; LINE100:
+;; 	db 0x00, 0x64, 0xEF, 0x3A, 0x38, 0x37, 0xDA, 0x1D
+;; 	db 0x22, 0x20, 0x1E, 0x24, 0xD9
+
+LINE110:
+	db 0x76, 0x00, 0x6E, 0xFE	; 100 REM 
+	db _T, _Y, _P, _E, _SPACE, _QUOTE, _R, _A
+	db _N, _D, _O, _M, _I, _Z, _E, _SPACE
+	db _U, _S, _R, _LEFTPARENTH, _1, _6, _4, _2
+	db _8, _RIGHTPARENTH, _QUOTE, _SPACE, _T, _O, _SPACE, _P
+	db _L, _A, _Y, _T, _T, _T, _T, _T
+	db _T, _T, _T, _T, _T, _T, _T, _T
+	db _T, _T, _T, _T, _T, _T, _T, _T
+	db _T, _T, _T, _T, _T, _T, _T, _T
+	db _T, _T, _T, _T, _T, _T, _T, _T
+	db _T, _T, _T, _T, _T, _T, _T, _T
+	db _T, _T, _T, _T, _T, _T, _T, _T
+	db _T, _T, _T, _T, _T, _T, _T, _T
+	db _T, _T, _T, _T, _T, _T, _T, _T
+	db _T, _T, _T, _T, _T, _T, _T, _T
+	db _T, _T, _T, _T, _T, _T, _T, _T
+	db _T, _T, _T, _T, _T, _T, _T, _T
+	db _T, _T, _T, _T, _T, _T, _T, _T
+	db _T, _T, _T, _T, _T, _T, _T, _T
+	db _T, _T, _T, _T, _T, _T, _T, _T
+	db _T, _T, _T, _T, _T, _T, _T, _T
+	db _T, _T, _T, _T, _T, _T, _T, _T
+	db _T, _T, _T, _T, _T, _T, _T, _T
+	db _T, _T, _T, _T, _T, _T, _T, _T
+	db _T, _T, _T, _T, _T, _T, _T, _T
+	db _T, _T, _T, _T, _T, _T, _T, _T
+	db _T, _T, _T, _T, _T, _T, _T, _T
+	db _T, _T, _T, _T, _T, _T, _T, _T
+	db _T, _T, _T, _T, _T, _T, _T, _T
+	db _T, _T, _T, _T, _T, _T, _T, _T
+	db _T, _T, _T, _T, _T, _T, _T, _T
+	db _T, _T, _T, _T, _T, _T, _T, _T
+	db _T, _T, _T, _T, _T, _T, _T, _T
 	
+BASIC_END:
+	db 0x76
+	
+VARS:	db 0x80
+
+E_LINE: db 0xB0, 0x76		; Inv-K, EOL
+	
+D_FILE:
+	include "hampson_gameboard.asm"
+END:	
