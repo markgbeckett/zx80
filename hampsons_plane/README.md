@@ -2,6 +2,8 @@
 
 This program is a Z80 machine-code implementation of the game Hampson's Plane, originally written by Mike Hampson (in BASIC) in 1982 and later ported to Forth as an example program for [CP Software's Spectrum Forth compiler](https://spectrumcomputing.co.uk/entry/8742/ZX-Spectrum/Spectrum_FORTH). 
 
+![In-game screenshot](hampson.png)
+
 I ported the game to learn how to create a flicker-free game on the ZX80 and also because I thought the ZX80 (and Minstrel 2) needed a bit more software.
 
 This version runs on a PAL-model ZX80, fitted with the 4K 'Integer' ROM and at least 4K of RAM, or on a [Minstrel 2](http://blog.tynemouthsoftware.co.uk/2022/02/minstrel-final-edition-kits.html). You can also run the game in an emulator (e.g., [EightyOne](https://sourceforge.net/projects/eightyone-sinclair-emulator/)).
@@ -12,7 +14,7 @@ The game will not work with the 8K 'Floating Point' ROM nor will it run on a ZX8
 
 There are two formats of the program available. The easiest to load is [hampson.o](hampson.o), which is a tape archive file suitable for use with a ZXPand device or most emulators. If using a ZXPand device, copy 'hampson.o' to the SD card on the device and then enter `LOAD "hampson"` to load the game into memory. If using an emulator, open the 'hampson.o' file and enter `LOAD` on the command line.
 
-There is also a WAV file that can be played from a PC or MP3 player into a ZX80 or Minstrel 2 via the 'Ear' socket. Enter `LOAD` on the ZX80 (or Minstrel 2) and then start playback of the WAV file. You will be likely to need a little trial and error to get the volume level right.
+There is also a [WAV](hampson.wav) file that can be played from a PC or MP3 player into a ZX80 or Minstrel 2 via the 'Ear' socket. Enter `LOAD` on the ZX80 (or Minstrel 2) and then start playback of the WAV file. You will be likely to need a little trial and error to get the volume level right.
 
 Once loaded, enter `GOTO 100` to start the game.
 
@@ -66,4 +68,4 @@ The sequencer itself requires 77 T states, leaving 1,287 T states for the functi
 
 There seems to be some flexibility in exactly how long a game step is -- possibly anything within around 10 T states of the target of 1,287 is good enough. If the routine length is too far from the target, the screen will be displayed offset or will flicker.
 
-Initially, I intended to write a separate routine to check if the player had solved the grid -- that is, checking there were no hash characters left on the grid. However, this proved far too time-consuming. I had intended to use the CPIR command to scan through the display file for a hash character. However, to check the whole board would require around 10,000 T states, or around 8 times the time available between frames. Instead I track the number of has characters throughout the game, updating the count ever time a block of tiles is flipped. This work well, though on top of other tasks, a player flipping a tile requires two frames.
+Initially, I intended to write a separate routine to check if the player had solved the grid -- that is, checking there were no asterisks left on the grid. However, this proved far too time-consuming. I had intended to use the CPIR command to scan through the display file for an asterisk. However, to check the whole board would require around 10,000 T states, or around 8 times the time available between frames. Instead I track the number of asterisks throughout the game, updating the count ever time a block of tiles is flipped. This work well, though on top of other tasks, a player flipping a tile requires two frames.
