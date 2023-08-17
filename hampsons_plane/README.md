@@ -60,12 +60,13 @@ The game sequence is, as follows:
 4. Read in column id
 5. Read in row id (first digit)
 6. Read in row id (second digit)
-7. Flip tile
-8. Check if solved (jump to 3, if not)
-9. Congratulate player (return to 2 on keypress)
+7. Flip tile (Part 1)
+8. Flip tile (Part 2)
+9. Check if solved (jump to 4, if not)
+10. Congratulate player (return to 1 on keypress)
 
 The sequencer itself requires 77 T states, leaving 1,287 T states for the functionality of each game step. The game will only move from one step to the next, if a certain condition is met. For example, the game will only move from Step 1 to Step 2, if the user presses a valid key (selecting a skill level between 1 and 9).
 
 There seems to be some flexibility in exactly how long a game step is -- possibly anything within around 10 T states of the target of 1,287 is good enough. If the routine length is too far from the target, the screen will be displayed offset or will flicker.
 
-Initially, I intended to write a separate routine to check if the player had solved the grid -- that is, checking there were no asterisks left on the grid. However, this proved far too time-consuming. I had intended to use the CPIR command to scan through the display file for an asterisk. However, to check the whole board would require around 10,000 T states, or around 8 times the time available between frames. Instead I track the number of asterisks throughout the game, updating the count ever time a block of tiles is flipped. This work well, though on top of other tasks, a player flipping a tile requires two frames.
+Initially, I intended to write a separate routine to check if the player had solved the grid -- that is, checking there were no asterisks left on the grid. However, this proved far too time-consuming. I had intended to use the CPIR command to scan through the display file for an asterisk. However, to check the whole board would require around 10,000 T states, or around 8 times the time available between frames. Instead I track the number of asterisks throughout the game, updating the count ever time a block of tiles is flipped. This works well, though on top of other tasks, a player flipping a tile now requires  two frames.
