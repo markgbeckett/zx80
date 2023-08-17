@@ -44,7 +44,7 @@ The machine code is embedded into REM statements in lines 10, 20, ..., 90. Do no
 
 ## Development
 
-I wrote this game to get to grips with flicker-free game writing for the ZX80 and Minstrel 2. Paul Farrow's guide to the [Flicker-free Mechanism](http://www.fruitcake.plus.com/Sinclair/ZX80/FlickerFree/ZX80_DisplayMechanism.htm) is particularly useful for learning to do this, as is the listing of the flicker-free [Breakout](http://www.fruitcake.plus.com/Sinclair/ZX80/FlickerFree/ZX80_Breakout.htm) game, by Macronics.
+I wrote this game to get to grips with flicker-free game writing for the ZX80 and Minstrel 2. Paul Farrow's guide to the [Flicker-free Mechanism](http://www.fruitcake.plus.com/Sinclair/ZX80/FlickerFree/ZX80_DisplayMechanism.htm) is particularly useful for learning to do this, as is the listing of the flicker-free [Breakout](http://www.fruitcake.plus.com/Sinclair/ZX80/FlickerFree/ZX80_Breakout.htm) game, by Macronics, and Grant Searle's page on [how the ZX80 creates a TV picture](http://www.searle.wales/zx80/zx80ScopePics.html).
 
 I have adopted the approach used by Breakout, which splits the game code into a sequence of functional units that can be fitted in the time taken to produce the VSync signal at the beginning of each display frame.
 
@@ -69,4 +69,10 @@ The sequencer itself requires 77 T states, leaving 1,287 T states for the functi
 
 There seems to be some flexibility in exactly how long a game step is -- possibly anything within around 10 T states of the target of 1,287 is good enough. If the routine length is too far from the target, the screen will be displayed offset or will flicker.
 
-Initially, I intended to write a separate routine to check if the player had solved the grid -- that is, checking there were no asterisks left on the grid. However, this proved far too time-consuming. I had intended to use the CPIR command to scan through the display file for an asterisk. However, to check the whole board would require around 10,000 T states, or around 8 times the time available between frames. Instead I track the number of asterisks throughout the game, updating the count ever time a block of tiles is flipped. This works well, though on top of other tasks, a player flipping a tile now requires  two frames.
+Initially, I intended to write a separate routine to check if the player had solved the grid -- that is, checking there were no asterisks left on the grid. However, this proved far too time-consuming. I had intended to use the CPIR command to scan through the display file for an asterisk. However, to check the whole board would require around 10,000 T states, or around 8 times the time available between frames. Instead I track the number of asterisks throughout the game, updating the count ever time a block of tiles is flipped. This works well, though on top of other tasks, a player flipping a tile now requires two frames.
+
+In developing the game, I relied on the following observations:
+
+- The ZX80 can serve the display from anywhere between 0x4000 and 0x8000. Store the location of the display in the system variables. Specifically, set the start of the display in DFILE (0x400C), the end of the display (one byte beyond) in DF_END (0x4010), and the start of the lower screen in DF_EA (0x400E).
+
+- When you return to BASIC (from executing a program or command) the ZX80 will relocate the screen to near the beginning of memory -- after System Variables and input buffer. This is possibly an issue if planning to work with both BASIC and machine code.

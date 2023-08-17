@@ -44,7 +44,7 @@ SYSVAR:
 	dw 0xFFFF		; Next char
 	
 RAMBOT:
-LINE10:	db 0x00, 0x0A, 0xFE, _A ; 10 REM 
+LINE10:	db 0x00, 0x0A, _REM, _A ; 10 REM 
 
 	;; Entry point from BASIC
 START:
@@ -145,7 +145,7 @@ COORD:	dw 0x0000		; User-specified coordinate (or temp.
 COUNT:	dw 0x000		; Counter for randomising initial grid
 CLOCK:	ds 03			; 24-bit clock for game
 	
-LINE20:	db 0x76, 0x00, 0x14, 0xFE	; 20 REM 
+LINE20:	db 0x76, 0x00, 0x14, _REM	; 20 REM 
 
 	;; ----------------------------------------------------------------
 	;; Start new game
@@ -305,7 +305,7 @@ F1_WAIT:
 
 	ret			; (10)
 
-LINE30:	db 0x76, 0x00, 0x1E, 0xFE	; 30 REM 
+LINE30:	db 0x76, 0x00, 0x1E, _REM	; 30 REM 
 
 	;; ----------------------------------------------------------------
 	;; Generate game board (1-iter), Part 2
@@ -383,7 +383,7 @@ COORD_MSG:			; Request next move
 	db _SPACE, _SPACE, _SPACE, _SPACE, _SPACE, _SPACE, _SPACE, _SPACE
 
 
-LINE40:	db 0x76, 0x00, 0x28, 0xFE	; 40 REM 
+LINE40:	db 0x76, 0x00, 0x28, _REM	; 40 REM 
 
 
 	;; ----------------------------------------------------------------
@@ -550,7 +550,7 @@ GC_LOOP2:
 	
 	ret			; (10)
 
-LINE50:	db 0x76, 0x00, 0x32, 0xFE	; 50 REM 
+LINE50:	db 0x76, 0x00, 0x32, _REM	; 50 REM 
 
 	;; ----------------------------------------------------------------
 	;; Wait until no key is being pressed
@@ -795,7 +795,7 @@ FI1_WAIT_2:
 
 	ret			; (10)
 	
-LINE60:	db 0x76, 0x00, 0x3C, 0xFE	; 60 REM 
+LINE60:	db 0x76, 0x00, 0x3C, _REM	; 60 REM 
 
 	;; ----------------------------------------------------------------
 	;; Flip 3x3 tile based on user-inputted coordinate (in COORD)
@@ -990,7 +990,7 @@ RG_LOOP:
 	
 	ret			; (10)
 	
-LINE70:	db 0x76, 0x00, 0x46, 0xFE	; 70 REM 
+LINE70:	db 0x76, 0x00, 0x46, _REM	; 70 REM 
 
 	;; ----------------------------------------------------------------
 	;; Convert grid coordinate into screen address
@@ -1248,7 +1248,7 @@ INC_CLOCK:
 
 	ret			; (10)
 	
-LINE80:	db 0x76, 0x00, 0x50, 0xFE	; 80 REM 
+LINE80:	db 0x76, 0x00, 0x50, _REM	; 80 REM 
 
 	;; ----------------------------------------------------------------
 	;; Print clock (with two d.p.)
@@ -1520,11 +1520,11 @@ BL_LOOP:
 ;; 	db 0x76
 
 ;; LINE100:
-;; 	db 0x00, 0x64, 0xEF, 0x3A, 0x38, 0x37, 0xDA, 0x1D
+;; 	db 0x00, 0x64, _RANDOMIZE, 0x3A, 0x38, 0x37, 0xDA, 0x1D
 ;; 	db 0x22, 0x20, 0x1E, 0x24, 0xD9
 
 LINE110:
-	db 0x76, 0x00, 0x6E, 0xFE	; 100 REM 
+	db 0x76, 0x00, 0x6E, _REM	; 100 REM 
 	db _T, _Y, _P, _E, _SPACE, _QUOTE, _R, _A
 	db _N, _D, _O, _M, _I, _Z, _E, _SPACE
 	db _U, _S, _R, _LEFTPARENTH, _1, _6, _4, _2

@@ -65,3 +65,5 @@ _Y:			equ $3E
 _Z:			equ $3F
 _EOL:			equ $76
 _INVSPACE:		equ $80
+_RANDOMIZE:		equ $EF
+_REM:			equ $FE
