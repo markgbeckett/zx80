@@ -1,4 +1,5 @@
 	;; ZX80 character-set codes
+_NULL:	   		equ $00
 _SPACE:			equ $00
 _QUOTE:			equ $01     
 _LEFTBLACK:		equ $02
@@ -16,11 +17,14 @@ _DOLLAR:		equ $0D
 _COLON:			equ $0E
 _QUESTION:		equ $0F
 _LEFTPARENTH:		equ $10
+_OPENBRACKET:		equ $10
 _RIGHTPARENTH:		equ $11
+_CLOSEBRACKET:		equ $11
 _MINUS:			equ $12
 _PLUS:			equ $13
 _ASTERISK:		equ $14
 _SLASH:			equ $15
+_APOSTROPHE:		equ $15
 _EQUALS:		equ $16
 _GREATER:		equ $17
 _LESS:			equ $18
@@ -64,6 +68,7 @@ _X:			equ $3D
 _Y:			equ $3E
 _Z:			equ $3F
 _EOL:			equ $76
+_CARRIAGERETURN:	equ $76
 _INVSPACE:		equ $80
 _RANDOMIZE:		equ $EF
 _REM:			equ $FE
