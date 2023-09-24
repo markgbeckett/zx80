@@ -1,16 +1,22 @@
-# HEXLD3 (for ZX80 with RAM expansion/ Minstrel 2)
+# HEXLD3 and Z80 Disassembler (for ZX80 with RAM expansion/ Minstrel 2)
 
 ## Introduction
 
-HEXLD3 is a tool, created by Toni Baker and described in her book "Mastering Machine Code on Your ZX81 (and ZX80)", to help people learn and write Z80 machine code.
+HEXLD3 is a tool, created by Toni Baker and described in her book "Mastering Machine Code on Your ZX81 (and ZX80)", to help people to learn and to write Z80 machine code.
 
 HEXLD3 is intended to give you a feel for how people wrote code in the 1980s: it is not very suitable for major projects!
 
 Readers of the book would progressively develop the tool as they read the book (mostly, in Chapter 9) and use it to write some interesting and creative examples of machine code on the ZX81 and ZX80.
 
+Towards the end of the book (in Chapter 16), Toni provides a starting point for writing a compact Z80 disassember, which -- improving on HEXLD3 -- will disassemble machine code back into the assembly language mnemonics, making it much easier to review and find errors in your machine code. Toni does not provide a complete listing, leaving the reader with a challenging exercise.
+
+In her subsequent book, "Mastering Machine Code on Your ZX Spectrum", Toni provides a complete listing of the disassembler. Starting from this, I have back-ported the disassembler to work with the ZX80, and integrated it into the HEXLD3 tool.
+
+## Developing HEXLD3
+
 There are two different versions of the tool: the ZX81 version (which you would also use if you had upgraded your ZX80 with the updated 8K ROM) is the focus of the book. Those wishing to type in the 4K ROM version need to make adjustments to the code as listed and, when I tried to do this, I found some problems.
 
-In 2011, [Thunor](https://www.google.com/url?sa=t&rct=j&q=&esrc=s&source=web&cd=&cad=rja&uact=8&ved=2ahUKEwifh9-X38X4AhUMKcAKHYa7AeYQFnoECAIQAQ&url=http%3A%2F%2Fwww.users.waitrose.com%2F~thunor%2Fmmcoyzx81%2Findex.html&usg=AOvVaw2u-jWVQsJL5syJxuSnPI1U) published their attempt to create a 4K ROM version of HEXLD3, following the Toni's guidelines. They noted similar problems to me and proposed fixes. Thunor's notes were incredibly useful and I have built on these. Thunor's 4K ROM version mostly works though I found some minor limitations, which I have attempted to fix.
+In 2011, [Thunor](https://www.google.com/url?sa=t&rct=j&q=&esrc=s&source=web&cd=&cad=rja&uact=8&ved=2ahUKEwifh9-X38X4AhUMKcAKHYa7AeYQFnoECAIQAQ&url=http%3A%2F%2Fwww.users.waitrose.com%2F~thunor%2Fmmcoyzx81%2Findex.html&usg=AOvVaw2u-jWVQsJL5syJxuSnPI1U) published their attempt to create a 4K ROM version of HEXLD3, following Toni's guidelines. They noted similar problems to me and proposed fixes. Thunor's notes were incredibly useful and I have built on these. Thunor's 4K ROM version mostly works though I found some minor limitations, which I have attempted to fix.
 
 Most notably, I have moved the HEXLD3 (subject) code into REM statements at the beginning of the BASIC program. This has a number of advantages:
 - It means it is ready to run as soon as you load HEXLD3 and is relatively safe from being overwritten.
@@ -24,7 +30,7 @@ Moving forward, I may make some further improvements and extensions to HEXLD3, a
 
 - [x] Add the improved code-listing capability, which is described by Toni Baker as "level 2" disassembly.
 - [x] Add breakpoint routine from the ZX Spectrum version of HEXLD3, which Toni developed later on.
-- [ ] Port the full disassembler from the ZX Spectrum version of the book.
+- [x] Port the full disassembler from the ZX Spectrum version of the book.
 
 ## Usage
 
@@ -47,6 +53,13 @@ Full details of how to use the program are provided in Toni's book. In summary, 
     6. `GOTO 500` to restore your code (immediately after loading).
     7. `RUN 700` to see the location and length of your code
     8. `RUN 800` to start a new project.
+    9. `RUN 900` to disassemble machine code (having first loaded the disassembler -- see below).
+
+### Loading the Disassembler
+
+Toni's Z80 disassembler is too long for me to insert into REM statements, so I have provided it as a separate binary file that can be loaded into memory at address 7800h. The binary file can only be loaded from a ZXpand SD-card reader, I am afraid. Assuming you have one, and having first loaded the main HEXLD3 program, you should type `LOAD "ZX80DISS.BIN;30720"`. This BASIC code at line 900 assumes the disassembler has been loaded in this way.
+
+If you would like to see the disassembler source code, take a look at [https://github.com/markgbeckett/jupiter_ace/tree/master/z80_disassembler](https://github.com/markgbeckett/jupiter_ace/tree/master/z80_disassembler).
 
 Have fun!
 
@@ -70,5 +83,3 @@ You will see, from Toni's book, that the program contains two routines and some 
 - The user is responsible for memory management. You need to ensure you do not write code to somewhere you should not (e.g., inside the BASIC workspace) and, if you extend the BASIC program, that it does not grow to overlap with your machine code.
 - Unlike for Toni's original version of the program, you do not need type `GOTO 500` when you load the program unless you have pre-existing machine code. Because HEXLD3 is stored in REM statements, it is immediately available for use.
 - I have (so far) added two extra routines. You can see the location and extent of your machine code, using `RUN 700`. This should help you to keep track of memory usage. You can start a new project, using `RUN 800` and then entering the start address (e.g., "org" address) for your new code. This will reset HEXLD3 variables, so it can no longer see any preexisting code you have written.
-Notes:
-
