@@ -57,9 +57,9 @@ Full details of how to use the program are provided in Toni's book. In summary, 
 
 ### Loading the Disassembler
 
-Toni's Z80 disassembler is too long for me to insert into REM statements, so I have provided it as a separate binary file that can be loaded into memory at address 7800h. The binary file can only be loaded from a ZXpand SD-card reader, I am afraid. Assuming you have one, and having first loaded the main HEXLD3 program, you should type `LOAD "ZX80DISS.BIN;30720"`. This BASIC code at line 900 assumes the disassembler has been loaded in this way.
+Toni's Z80 disassembler is too long for me to insert into REM statements, so I have provided it as a separate binary file that can be loaded into memory at address 7800h. The binary file can only be loaded from a ZXpand SD-card reader, I am afraid. Assuming you have one, and having first loaded the main HEXLD3 program, you should type `LOAD "ZX80DISS.BIN;30720"`. The BASIC code at line 900 assumes the disassembler has been loaded in this way.
 
-If you would like to see the disassembler source code, take a look at [https://github.com/markgbeckett/jupiter_ace/tree/master/z80_disassembler](https://github.com/markgbeckett/jupiter_ace/tree/master/z80_disassembler).
+If you would like to see the disassembler source code, take a look at [https://github.com/markgbeckett/jupiter_ace/tree/master/z80_disassembler](https://github.com/markgbeckett/jupiter_ace/tree/master/z80_disassembler) or type `RUN 900` and enter `7800` as the starting address!
 
 Have fun!
 
