@@ -21,7 +21,7 @@ FRAME:	equ 0x401E		; System variable holding clock
 SYSVAR:	
 	db 0x00			; ERRNO
 	db 0x04			; FLAGS
-	dw 0x0000		; Current statement
+	dw 0xFFFF		; Current statement
 	dw E_LINE		; Insertion point in E_LINE
 	dw 0x006E		; Current line
 	dw VARS
@@ -30,7 +30,7 @@ SYSVAR:
 	dw D_FILE+0x21*0x17+01	; DF_EA
 	dw END			; DF_END
 	db 0x02			; Number of lines in lower screen
-	dw 0x006E		; First line on screen
+	dw 0x0064		; First line on screen
 	dw 0x0000
 	dw 0x0000
 	db 0x00
@@ -42,7 +42,7 @@ SYSVAR:
 	db 0x21			; Next char posn
 	db 0x17			; Next row
 	dw 0xFFFF		; Next char
-	
+
 RAMBOT:
 LINE10:	db 0x00, 0x0A, _REM, _A ; 10 REM 
 
@@ -161,6 +161,10 @@ PROF:	ld bc, 0x001C		; (10)
 	;; Read number from keyboard (268...270 T states)
 	call READNUM		; (17+251...253)
 
+	ld b,2
+NG_LOOP:
+	djnz NG_LOOP
+	
 	;; Check value read is within range 1...9
 	;; 32/23/37 T-states (balanced by NO_NUM)
 	ld a,d			; (4)
@@ -410,103 +414,107 @@ GET_COL:
 	ld d, 0xFF		; (7)
 	ld bc, 0xFBFE		; (10)
 	in a,(c)		; (12)
-	cp 0x7E			; (7)
-	jr nz, NO_Q		; (12/7)
+	rra			; (7)
+	jr c, NO_Q		; (12/7)
 	ld d, _Q		; (7)
-NO_Q:	cp 0x7D			; (7)
-	jr nz, NO_W		; (12/7)
+NO_Q:	rra			; (7)
+	jr c, NO_W		; (12/7)
 	ld d, _W		; (7)
-NO_W:	cp 0x7B			; (7)
-	jr nz, NO_E		; (12/7)
+NO_W:	rra			; (7)
+	jr c, NO_E		; (12/7)
 	ld d, _E		; (7)
-NO_E:	cp 0x77			; (7)
-	jr nz, NO_R		; (12/7)
+NO_E:	rra			; (7)
+	jr c, NO_R		; (12/7)
 	ld d, _R		; (7)
-NO_R:	cp 0x6F			; (7)
-	jr nz, NO_T		; (12/7)
+NO_R:	rra			; (7)
+	jr c, NO_T		; (12/7)
 	ld d, _T		; (7)
 
 	;; Row 1 right (117...119)
 NO_T:	ld bc, 0xDFFE		; (10)
 	in a,(c)		; (12)
-	cp 0x7E			; (7)
-	jr nz, NO_P		; (12/7)
+	rra			; (7)
+	jr c, NO_P		; (12/7)
 	ld d, _P		; (7)
-NO_P:	cp 0x7D			; (7)
-	jr nz, NO_O		; (12/7)
+NO_P:	rra			; (7)
+	jr c, NO_O		; (12/7)
 	ld d, _O		; (7)
-NO_O:	cp 0x7B			; (7)
-	jr nz, NO_I		; (12/7)
+NO_O:	rra			; (7)
+	jr c, NO_I		; (12/7)
 	ld d, _I		; (7)
-NO_I:	cp 0x77			; (7)
-	jr nz, NO_U		; (12/7)
+NO_I:	rra			; (7)
+	jr c, NO_U		; (12/7)
 	ld d, _U		; (7)
-NO_U:	cp 0x6F			; (7)
-	jr nz, NO_Y		; (12/7)
+NO_U:	rra			; (7)
+	jr c, NO_Y		; (12/7)
 	ld d, _Y		; (7)
 
 	;; Row 2 left (117...119)
 NO_Y:	ld bc, 0xFDFE		; (10)
 	in a,(c)		; (12)
-	cp 0x7E			; (7)
-	jr nz, NO_A		; (12/7)
+	rra			; (7)
+	jr c, NO_A		; (12/7)
 	ld d, _A		; (7)
-NO_A:	cp 0x7D			; (7)
-	jr nz, NO_S		; (12/7)
+NO_A:	rra			; (7)
+	jr c, NO_S		; (12/7)
 	ld d, _S		; (7)
-NO_S:	cp 0x7B			; (7)
-	jr nz, NO_D		; (12/7)
+NO_S:	rra			; (7)
+	jr c, NO_D		; (12/7)
 	ld d, _D		; (7)
-NO_D:	cp 0x77			; (7)
-	jr nz, NO_F		; (12/7)
+NO_D:	rra			; (7)
+	jr c, NO_F		; (12/7)
 	ld d, _F		; (7)
-NO_F:	cp 0x6F			; (7)
-	jr nz, NO_G		; (12/7)
+NO_F:	rra			; (7)
+	jr c, NO_G		; (12/7)
 	ld d, _G		; (7)
 
 	;; Row 2 right (98...100)
 NO_G:	ld bc, 0xBFFE		; (10)
 	in a,(c)		; (12)
-	cp 0x7D			; (7)
-	jr nz, NO_L		; (12/7)
+	rra			; (4)
+	rra			; (4)
+	jr c, NO_L		; (12/7)
 	ld d, _L		; (7)
-NO_L:	cp 0x7B			; (7)
-	jr nz, NO_K		; (12/7)
+NO_L:	rra			; (7)
+	jr c, NO_K		; (12/7)
 	ld d, _K		; (7)
-NO_K:	cp 0x77			; (7)
-	jr nz, NO_J		; (12/7)
+NO_K:	rra			; (7)
+	jr c, NO_J		; (12/7)
 	ld d, _J		; (7)
-NO_J:	cp 0x6F			; (7)
-	jr nz, NO_H		; (12/7)
+NO_J:	rra			; (7)
+	jr c, NO_H		; (12/7)
 	ld d, _H		; (7)
 
 	;; Row 3 left (98...100)
 NO_H:	ld bc, 0xFEFE		; (10)
 	in a,(c)		; (12)
-	cp 0x7D			; (7)
-	jr nz, NO_Z		; (12/7)
+	rra
+	rra			; (7)
+	jr c, NO_Z		; (12/7)
 	ld d, _Z		; (7)
-NO_Z:	cp 0x7B			; (7)
-	jr nz, NO_X		; (12/7)
+NO_Z:	rra			; (7)
+	jr c, NO_X		; (12/7)
 	ld d, _X		; (7)
-NO_X:	cp 0x77			; (7)
-	jr nz, NO_C		; (12/7)
+NO_X:	rra			; (7)
+	jr c, NO_C		; (12/7)
 	ld d, _C		; (7)
-NO_C:	cp 0x6F			; (7)
-	jr nz, NO_V		; (12/7)
+NO_C:	rra			; (7)
+	jr c, NO_V		; (12/7)
 	ld d, _V		; (7)
 
 	;; Row 3 right (79...81)
 NO_V:	ld bc, 0x7FFE		; (10)
 	in a,(c)		; (12)
-	cp 0x7B			; (7)
-	jr nz, NO_M		; (12/7)
+	rra			; (7)
+	rra
+	rra
+	jr c, NO_M		; (12/7)
 	ld d, _M		; (7)
-NO_M:	cp 0x77			; (7)
-	jr nz, NO_N		; (12/7)
+NO_M:	rra			; (7)
+	jr c, NO_N		; (12/7)
 	ld d, _N		; (7)
-NO_N:	cp 0x6F			; (7)
-	jr nz, NO_B		; (12/7)
+NO_N:	rra			; (7)
+	jr c, NO_B		; (12/7)
 	ld d, _B		; (7)
 
 	;; If key pressed, write to screen and store
@@ -534,9 +542,7 @@ GC_NO_KEY:
 	call PRINT_CLOCK	; (426)
 
 	;; Wait (49)
-	nop
-	nop
-	ld b,3
+	ld b,8
 GC_LOOP_1:
 	djnz GC_LOOP_1
 	
@@ -544,7 +550,7 @@ GC_LOOP_1:
 	
 GC_KEY:
 	;; Wait (409)
-	ld b, 0x1F		; (7)
+	ld b, 0x24		; (7)
 GC_LOOP2:
 	djnz GC_LOOP2		; (13/8)
 	
@@ -615,10 +621,10 @@ GET_ROW_1:
 	;; Read keys 1,..., 5 (29 T-states)
 	ld bc, 0xF7FE		; (10)
 	in a,(c)		; (12)
-	cp 0x7E			; (7)
+	rra			; (4)
 
 	;; Skip forward if '1' not pressed
-	jr nz, G1_NOT_1		; (12/7)
+	jr c, G1_NOT_1		; (12/7)
 
 	;; Set A to partial row number and C to corresponding digit
 	ld a,0x0A		; (7)
@@ -633,11 +639,11 @@ G1_NOT_1:
 	;; Read key 6,...,0 (29)
 	ld bc, 0xEFFE		; (10)
 	in a,(c)		; (12)
-	cp 0x7E			; (7)
+	rra			; (4)
 
 	;; Skip forward if '0' not pressed
 	ld b,0x30		; (7) Set wait value
-	jr nz, G1_WAIT		; (12/7)
+	jr c, G1_WAIT		; (12/7)
 
 	;; Set A to partial row number and C to corresponding digit
 	xor a			; (4)
@@ -713,7 +719,7 @@ GET_ROW_0:
 	push de			; (11)
 
 	;; Wait (756)
-	ld b,0x3A		; (7)
+	ld b,0x3C		; (7)
 G0_LOOP:
 	djnz G0_LOOP
 
@@ -724,7 +730,7 @@ G0_NO_KEY:
 	call PRINT_CLOCK	; (426)
 
 	;; Wait (418)
-	ld b, 0x20		; (7)
+	ld b, 0x22		; (7)
 G0_LOOP_2:
 	djnz G0_LOOP_2
 	
@@ -1090,45 +1096,45 @@ CONT:	djnz ROW3		; (13/8)
 	;; ----------------------------------------------------------------
 	;; Read number
 	;; ----------------------------------------------------------------
-	;; 251 ... 253 T-states
+	;; 221 ... 223 T-states
 READNUM:	
 	ld d, 0xFF		; (7)
 	ld bc, 0xF7FE		; (10)
 	in a,(c)		; (12)
 
-	cp 0x7E			; (7)
-	jr nz, NO_1		; (12/7)
+	rra			; (4)
+	jr c, NO_1		; (12/7)
 	ld d, 0x01		; (7)
-NO_1:	cp 0x7D			; (7)
-	jr nz, NO_2		; (12/7)
+NO_1:	rra			; (4)
+	jr c, NO_2		; (12/7)
 	ld d, 0x02		; (7)
-NO_2:	cp 0x7B			; (7)
-	jr nz, NO_3		; (12/7)
+NO_2:	rra			; (4)
+	jr c, NO_3		; (12/7)
 	ld d, 0x03		; (7)
-NO_3:	cp 0x77			; (7)
-	jr nz, NO_4		; (12/7)
+NO_3:	rra			; (4)
+	jr c, NO_4		; (12/7)
 	ld d, 0x04		; (7)
-NO_4:	cp 0x6F			; (7)
-	jr nz, NO_5		; (12/7)
+NO_4:	rra			; (4)
+	jr c, NO_5		; (12/7)
 	ld d, 0x05		; (7)
 
 NO_5:	ld bc, 0xEFFE		; (10)
 	in a,(c)		; (12)
 
-	cp 0x7E			; (7)
-	jr nz, NO_0		; (12/7)
-	ld d, 0x00		; (7)
-NO_0:	cp 0x7D			; (7)
-	jr nz, NO_9		; (12/7)
+	rra			; (4)
+	jr c, NO_0		; (12/7)
+	ld d, 0x00		; (4)
+NO_0:	rra			; (7)
+	jr c, NO_9		; (12/7)
 	ld d, 0x09		; (7)
-NO_9:	cp 0x7B			; (7)
-	jr nz, NO_8		; (12/7)
+NO_9:	rra			; (4)
+	jr c, NO_8		; (12/7)
 	ld d, 0x08		; (7)
-NO_8:	cp 0x77			; (7)
-	jr nz, NO_7		; (12/7)
+NO_8:	rra			; (4)
+	jr c, NO_7		; (12/7)
 	ld d, 0x07		; (7)
-NO_7:	cp 0x6F			; (7)
-	jr nz, NO_6		; (12/7)
+NO_7:	rra			; (4)
+	jr c, NO_6		; (12/7)
 	ld d, 0x06		; (7)
 
 NO_6:	ret			; (10)
@@ -1517,46 +1523,10 @@ BL_LOOP:
 
 	ret
 
-;; 	db 0x76
+LINE100:
+ 	db 0x76, 0x00, 0x64, _RANDOMIZE, 0x3A, 0x38, 0x37, 0xDA, 0x1D
+ 	db 0x22, 0x20, 0x1E, 0x24, 0xD9
 
-;; LINE100:
-;; 	db 0x00, 0x64, _RANDOMIZE, 0x3A, 0x38, 0x37, 0xDA, 0x1D
-;; 	db 0x22, 0x20, 0x1E, 0x24, 0xD9
-
-LINE110:
-	db 0x76, 0x00, 0x6E, _REM	; 100 REM 
-	db _T, _Y, _P, _E, _SPACE, _QUOTE, _R, _A
-	db _N, _D, _O, _M, _I, _Z, _E, _SPACE
-	db _U, _S, _R, _LEFTPARENTH, _1, _6, _4, _2
-	db _8, _RIGHTPARENTH, _QUOTE, _SPACE, _T, _O, _SPACE, _P
-	db _L, _A, _Y, _T, _T, _T, _T, _T
-	db _T, _T, _T, _T, _T, _T, _T, _T
-	db _T, _T, _T, _T, _T, _T, _T, _T
-	db _T, _T, _T, _T, _T, _T, _T, _T
-	db _T, _T, _T, _T, _T, _T, _T, _T
-	db _T, _T, _T, _T, _T, _T, _T, _T
-	db _T, _T, _T, _T, _T, _T, _T, _T
-	db _T, _T, _T, _T, _T, _T, _T, _T
-	db _T, _T, _T, _T, _T, _T, _T, _T
-	db _T, _T, _T, _T, _T, _T, _T, _T
-	db _T, _T, _T, _T, _T, _T, _T, _T
-	db _T, _T, _T, _T, _T, _T, _T, _T
-	db _T, _T, _T, _T, _T, _T, _T, _T
-	db _T, _T, _T, _T, _T, _T, _T, _T
-	db _T, _T, _T, _T, _T, _T, _T, _T
-	db _T, _T, _T, _T, _T, _T, _T, _T
-	db _T, _T, _T, _T, _T, _T, _T, _T
-	db _T, _T, _T, _T, _T, _T, _T, _T
-	db _T, _T, _T, _T, _T, _T, _T, _T
-	db _T, _T, _T, _T, _T, _T, _T, _T
-	db _T, _T, _T, _T, _T, _T, _T, _T
-	db _T, _T, _T, _T, _T, _T, _T, _T
-	db _T, _T, _T, _T, _T, _T, _T, _T
-	db _T, _T, _T, _T, _T, _T, _T, _T
-	db _T, _T, _T, _T, _T, _T, _T, _T
-	db _T, _T, _T, _T, _T, _T, _T, _T
-	db _T, _T, _T, _T, _T, _T, _T, _T
-	db _T, _T, _T, _T, _T, _T, _T, _T
 	
 BASIC_END:
 	db 0x76
@@ -1564,7 +1534,8 @@ BASIC_END:
 VARS:	db 0x80
 
 E_LINE: db 0xB0, 0x76		; Inv-K, EOL
-	
+
+	ds $4800-$
 D_FILE:
 	include "hampson_gameboard.asm"
 END:	
