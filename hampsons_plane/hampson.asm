@@ -125,6 +125,8 @@ JUMP_TABLE:
 	dw NEW_GAME		;
 	dw FLIP_TILE_1		;
 	dw FLIP_TILE_2		;
+	dw PRESS_C		;
+	dw STOP_NO_KEY
 	dw REQ_COORD		;
 	dw GET_COL		;
 	dw WAIT_NO_KEY		;
@@ -144,6 +146,7 @@ COORD:	dw 0x0000		; User-specified coordinate (or temp.
 	                        ; store for address during grid init)
 COUNT:	dw 0x000		; Counter for randomising initial grid
 CLOCK:	ds 03			; 24-bit clock for game
+MODE:	db 0x01			; ZX81 / 4D
 	
 LINE20:	db 0x76, 0x00, 0x14, _REM	; 20 REM 
 
@@ -349,6 +352,112 @@ IDLE_W:	djnz IDLE_W		; (13/8)
 	nop			; (4)
 	
 	ret			; (10)
+
+	;; ----------------------------------------------------------------
+	;; Get user to press 'C' to start, which also allows us to check
+	;; which keyboard they are using (ZX80 or Minstrel 4D)
+	;;	
+	;; T = 1,283 (aiming for 1,283 T states)
+	;; ----------------------------------------------------------------
+PRESS_C:	
+	;; Copy message to row 21 of display (613)
+	ld hl, START_MSG	; (10)
+	ld bc, 0x001E		; (10)
+	ld de, D_FILE+21*33+1	; (10)
+	ldir			; ( = 21*27+16)
+
+	;; Read bottom-left half-row
+	ld bc, 0xFEFE		; (10)
+	in a,(c)		; (12)
+
+	;; Check if bit 3 (ZX80 'C') is reset
+	rra			; (4)
+	rra			; (4)
+	rra			; (4)
+	rra			; (4)
+	jr nc, ZX80C 		; (12/7)
+
+	;; Check if bit 4 (Minstrel 4D 'C') is reset
+	rra			; (4)
+	jr nc, ACEC		; (12/7)
+
+	;; No key pressed, so repeat (T=58 at this point)
+	ld b,0x2D		; (7)
+C_IDLE:	djnz C_IDLE		; (13/8)
+
+	ret			; (10)
+
+ZX80C:	xor a			; (4)
+	ld (MODE),a		; (13)
+
+	ld b,0x29
+CLOOP2:	djnz CLOOP2
+
+	jr CNEXT		; (12)
+
+ACEC:	ld a,0x01		; (7)
+	ld (MODE),a		; (13)
+
+	ld b,0x27
+CLOOP3:	djnz CLOOP3
+	
+	jr CNEXT		; (12)
+	
+	;; Update game-step counter to point to request coordinate (48)
+CNEXT:	pop de			; (10)
+	pop hl			; (10)
+	inc hl			; (6)
+	push hl			; (11)
+	push de			; (11)
+
+	ret			; (10)
+
+START_MSG:
+	db _SPACE, _P, _R, _E, _S, _S, _SPACE, _APOSTROPHE
+	db _C, _APOSTROPHE, _SPACE, _T,  _O, _SPACE, _S, _T
+	db _A, _R, _T, _SPACE, _SPACE, _SPACE, _SPACE, _SPACE
+	db _SPACE, _SPACE, _SPACE, _SPACE, _SPACE, _SPACE, _SPACE, _SPACE
+
+
+LINE35:	db 0x76, 0x00, 0x23, _REM	; 30 REM 
+
+	
+	;; ----------------------------------------------------------------
+	;; Wait for all keys to be released
+	;;
+	;; Timing:
+	;;     1,278 T-states
+	;; ----------------------------------------------------------------
+STOP_NO_KEY:
+	;; Advance timer
+	;; call INC_CLOCK 		; (124)
+
+	;; Check for key-press
+	call KSCAN		; (729)
+
+	;; Check if HL = 0xFFFF, which indicates no key pressed (14)
+	inc hl			; (6) HL = 0 ?
+	ld a,h			; (4)
+	or l			; (4)
+
+	ld b,0x29		; (7) Default wait time (used at end of
+	                        ;     routine
+	jr nz, SK_DUMMY 	; (12/7)
+	ld b,0x25		; (7) Reduce wait time
+	
+	;;  No key pressed, so advance to next game step
+	pop de			; (10)
+	pop hl			; (10)
+	inc hl			; (6)
+	push hl			; (11)
+	push de			; (11)
+
+	;; Wait until end of V. Sync
+SK_DUMMY:
+	djnz SK_DUMMY		; (13/8)
+
+	ret			; (10)
+	
 	
 	;; ----------------------------------------------------------------
 	;; Print message to request coordinate
@@ -485,8 +594,12 @@ NO_J:	rra			; (7)
 	jr c, NO_H		; (12/7)
 	ld d, _H		; (7)
 
+NO_H:	ld a,(MODE)		; (13)
+	and a			; (4)
+	jp nz, MODE_4D		; (12) - constant timing
+	
 	;; Row 3 left (98...100)
-NO_H:	ld bc, 0xFEFE		; (10)
+	ld bc, 0xFEFE		; (10)
 	in a,(c)		; (12)
 	rra
 	rra			; (7)
@@ -517,9 +630,46 @@ NO_N:	rra			; (7)
 	jr c, NO_B		; (12/7)
 	ld d, _B		; (7)
 
+	jr NO_B			; (12)
+	
+	;; Row 3 left (98...100)
+MODE_4D:
+	ld bc, 0xFEFE		; (10)
+	in a,(c)		; (12)
+	rra			; (4)
+	rra			; (4)
+	rra			; (4)
+	jr c, ND_Z		; (12/7)
+	ld d, _Z		; (7)
+ND_Z:	rra			; (7)
+	jr c, ND_X		; (12/7)
+	ld d, _X		; (7)
+ND_X:	rra			; (7)
+	jr c, ND_C		; (12/7)
+	ld d, _C		; (7)
+
+	;; Row 3 right (79...81)
+ND_C:	ld bc, 0x7FFE		; (10)
+	in a,(c)		; (12)
+
+	rra
+	rra
+	jr c, ND_M		; (12/7)
+	ld d, _M		; (7)
+ND_M:	rra			; (7)
+	jr c, ND_N		; (12/7)
+	ld d, _N		; (7)
+ND_N:	rra			; (7)
+	jr c, ND_B		; (12/7)
+	ld d, _B		; (7)
+ND_B:	rra			; (7)
+	jr c, ND_V		; (12/7)
+	ld d, _V		; (7)
+
 	;; If key pressed, write to screen and store
 	;; (No key - 30; Key - 52)
-NO_B:	ld hl, D_FILE+33*21+26	; (10)
+NO_B:	
+ND_V:	ld hl, D_FILE+33*21+26	; (10)
 	ld a,d			; (4)
 	inc d			; (4)
 	jr z, GC_NO_KEY		; (12/7)
@@ -972,10 +1122,10 @@ RESTART_GAME:
 
 	jr z, RG_NO_KEY 	; (12/7)
 
-	;;  No key pressed, so advance to next game step
+	;;  Key pressed, so advance to next game step
 	pop de			; (10)
 	pop hl			; (10)
-	ld bc, 0x000E		; (10)
+	ld bc, 0x0010		; (10)
 	and a			; (4)
 	sbc hl,bc		; (15)
 	push hl			; (11)
