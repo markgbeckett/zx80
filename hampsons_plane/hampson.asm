@@ -426,26 +426,23 @@ LINE35:	db 0x76, 0x00, 0x23, _REM	; 30 REM
 	;; Wait for all keys to be released
 	;;
 	;; Timing:
-	;;     1,278 T-states
+	;;     1,272--1,274 (aiming for 1,278 T-states)
 	;; ----------------------------------------------------------------
 STOP_NO_KEY:
-	;; Advance timer
-	;; call INC_CLOCK 		; (124)
-
 	;; Check for key-press
 	call KSCAN		; (729)
 
-	;; Check if HL = 0xFFFF, which indicates no key pressed (14)
+	;; Check if HL = 0xFFFF, which indicates no key pressed (33/35)
 	inc hl			; (6) HL = 0 ?
 	ld a,h			; (4)
 	or l			; (4)
 
-	ld b,0x29		; (7) Default wait time (used at end of
+	ld b,0x27		; (7) Default wait time (used at end of
 	                        ;     routine
 	jr nz, SK_DUMMY 	; (12/7)
-	ld b,0x25		; (7) Reduce wait time
+	ld b,0x23		; (7) Reduce wait time
 	
-	;;  No key pressed, so advance to next game step
+	;;  No key pressed, so advance to next game step (48)
 	pop de			; (10)
 	pop hl			; (10)
 	inc hl			; (6)
@@ -457,7 +454,6 @@ SK_DUMMY:
 	djnz SK_DUMMY		; (13/8)
 
 	ret			; (10)
-	
 	
 	;; ----------------------------------------------------------------
 	;; Print message to request coordinate
@@ -509,7 +505,7 @@ LINE40:	db 0x76, 0x00, 0x28, _REM	; 40 REM
 	;;     af, c, de, hl - corrupted
 	;; 
 	;; Timing (aim for 1,283 T states):
-	;;     1,274 (no key)
+	;;     1,277 (no key)
 	;;     1,283 (key)
 	;; ----------------------------------------------------------------
 GET_COL:
@@ -519,120 +515,122 @@ GET_COL:
 	;; Scan keyboard using brute force check for each key
 	;; to ensure consistent timing
 
-	;; Row 1 left (124...126)
+	;; Row 1 left (117...119 T states)
 	ld d, 0xFF		; (7)
 	ld bc, 0xFBFE		; (10)
 	in a,(c)		; (12)
-	rra			; (7)
+	rra			; (4)
 	jr c, NO_Q		; (12/7)
 	ld d, _Q		; (7)
-NO_Q:	rra			; (7)
+NO_Q:	rra			; (4)
 	jr c, NO_W		; (12/7)
 	ld d, _W		; (7)
-NO_W:	rra			; (7)
+NO_W:	rra			; (4)
 	jr c, NO_E		; (12/7)
 	ld d, _E		; (7)
-NO_E:	rra			; (7)
+NO_E:	rra			; (4)
 	jr c, NO_R		; (12/7)
 	ld d, _R		; (7)
-NO_R:	rra			; (7)
+NO_R:	rra			; (4)
 	jr c, NO_T		; (12/7)
 	ld d, _T		; (7)
 
-	;; Row 1 right (117...119)
+	;; Row 1 right (110...112 T states)
 NO_T:	ld bc, 0xDFFE		; (10)
 	in a,(c)		; (12)
-	rra			; (7)
+	rra			; (4)
 	jr c, NO_P		; (12/7)
 	ld d, _P		; (7)
-NO_P:	rra			; (7)
+NO_P:	rra			; (4)
 	jr c, NO_O		; (12/7)
 	ld d, _O		; (7)
-NO_O:	rra			; (7)
+NO_O:	rra			; (4)
 	jr c, NO_I		; (12/7)
 	ld d, _I		; (7)
-NO_I:	rra			; (7)
+NO_I:	rra			; (4)
 	jr c, NO_U		; (12/7)
 	ld d, _U		; (7)
-NO_U:	rra			; (7)
+NO_U:	rra			; (4)
 	jr c, NO_Y		; (12/7)
 	ld d, _Y		; (7)
 
-	;; Row 2 left (117...119)
+	;; Row 2 left (110...112 T states)
 NO_Y:	ld bc, 0xFDFE		; (10)
 	in a,(c)		; (12)
-	rra			; (7)
+	rra			; (4)
 	jr c, NO_A		; (12/7)
 	ld d, _A		; (7)
-NO_A:	rra			; (7)
+NO_A:	rra			; (4)
 	jr c, NO_S		; (12/7)
 	ld d, _S		; (7)
-NO_S:	rra			; (7)
+NO_S:	rra			; (4)
 	jr c, NO_D		; (12/7)
 	ld d, _D		; (7)
-NO_D:	rra			; (7)
+NO_D:	rra			; (4)
 	jr c, NO_F		; (12/7)
 	ld d, _F		; (7)
-NO_F:	rra			; (7)
+NO_F:	rra			; (4)
 	jr c, NO_G		; (12/7)
 	ld d, _G		; (7)
 
-	;; Row 2 right (98...100)
+	;; Row 2 right (125...127 T states)
 NO_G:	ld bc, 0xBFFE		; (10)
 	in a,(c)		; (12)
 	rra			; (4)
 	rra			; (4)
 	jr c, NO_L		; (12/7)
 	ld d, _L		; (7)
-NO_L:	rra			; (7)
+NO_L:	rra			; (4)
 	jr c, NO_K		; (12/7)
 	ld d, _K		; (7)
-NO_K:	rra			; (7)
+NO_K:	rra			; (4)
 	jr c, NO_J		; (12/7)
 	ld d, _J		; (7)
-NO_J:	rra			; (7)
+NO_J:	rra			; (4)
 	jr c, NO_H		; (12/7)
 	ld d, _H		; (7)
-
 NO_H:	ld a,(MODE)		; (13)
 	and a			; (4)
 	jp nz, MODE_4D		; (12) - constant timing
 	
-	;; Row 3 left (98...100)
+	;; Row 3 left (96...98 T states)
 	ld bc, 0xFEFE		; (10)
 	in a,(c)		; (12)
-	rra
-	rra			; (7)
+	rra			; (4)
+	rra			; (4)
 	jr c, NO_Z		; (12/7)
 	ld d, _Z		; (7)
-NO_Z:	rra			; (7)
+NO_Z:	rra			; (4)
 	jr c, NO_X		; (12/7)
 	ld d, _X		; (7)
-NO_X:	rra			; (7)
+NO_X:	rra			; (4)
 	jr c, NO_C		; (12/7)
 	ld d, _C		; (7)
-NO_C:	rra			; (7)
+NO_C:	rra			; (4)
 	jr c, NO_V		; (12/7)
 	ld d, _V		; (7)
 
-	;; Row 3 right (79...81)
+	;; Row 3 right (94...96 T states)
 NO_V:	ld bc, 0x7FFE		; (10)
 	in a,(c)		; (12)
-	rra			; (7)
-	rra
-	rra
+	rra			; (4)
+	rra			; (4)
+	rra			; (4)
 	jr c, NO_M		; (12/7)
 	ld d, _M		; (7)
-NO_M:	rra			; (7)
+NO_M:	rra			; (4)
 	jr c, NO_N		; (12/7)
 	ld d, _N		; (7)
-NO_N:	rra			; (7)
+NO_N:	rra			; (4)
 	jr c, NO_B		; (12/7)
 	ld d, _B		; (7)
-
 	jr NO_B			; (12)
+
+	nop			; (4)
+	nop			; (4)
+	nop			; (4)
 	
-	;; Row 3 left (98...100)
+	;; Row 3 left (82...84 T states)
 MODE_4D:
 	ld bc, 0xFEFE		; (10)
 	in a,(c)		; (12)
@@ -641,28 +639,27 @@ MODE_4D:
 	rra			; (4)
 	jr c, ND_Z		; (12/7)
 	ld d, _Z		; (7)
-ND_Z:	rra			; (7)
+ND_Z:	rra			; (4)
 	jr c, ND_X		; (12/7)
 	ld d, _X		; (7)
-ND_X:	rra			; (7)
+ND_X:	rra			; (4)
 	jr c, ND_C		; (12/7)
 	ld d, _C		; (7)
 
-	;; Row 3 right (79...81)
+	;; Row 3 right (96...98 T states)
 ND_C:	ld bc, 0x7FFE		; (10)
 	in a,(c)		; (12)
-
-	rra
-	rra
+	rra			; (4)
+	rra			; (4)
 	jr c, ND_M		; (12/7)
 	ld d, _M		; (7)
-ND_M:	rra			; (7)
+ND_M:	rra			; (4)
 	jr c, ND_N		; (12/7)
 	ld d, _N		; (7)
-ND_N:	rra			; (7)
+ND_N:	rra			; (4)
 	jr c, ND_B		; (12/7)
 	ld d, _B		; (7)
-ND_B:	rra			; (7)
+ND_B:	rra			; (4)
 	jr c, ND_V		; (12/7)
 	ld d, _V		; (7)
 
@@ -687,20 +684,20 @@ ND_V:	ld hl, D_FILE+33*21+26	; (10)
 	jr GC_KEY		; (7)
 	
 GC_NO_KEY:	
-	;; 787 so far
+	;; 818 so far
 	ld de, D_FILE+20*33+24	; (10)
 	call PRINT_CLOCK	; (426)
 
-	;; Wait (49)
-	ld b,8
-GC_LOOP_1:
-	djnz GC_LOOP_1
+	nop			; (4)
+	nop			; (4)
+	nop			; (4)
 	
 	ret			; (10)
-	
+
+	;; 895
 GC_KEY:
-	;; Wait (409)
-	ld b, 0x24		; (7)
+	;; Wait (372)
+	ld b, 0x1d		; (7)
 GC_LOOP2:
 	djnz GC_LOOP2		; (13/8)
 	
