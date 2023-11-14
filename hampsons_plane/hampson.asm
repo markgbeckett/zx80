@@ -161,12 +161,13 @@ PROF:	ld bc, 0x001C		; (10)
 	ld de, D_FILE+21*33+1	; (10)
 	ldir			; ( = 27*21+16)
 
-	;; Read number from keyboard (268...270 T states)
-	call READNUM		; (17+251...253)
+	;; Read number from keyboard (238...240 T states)
+	call READNUM		; (17+221...223)
 
-	ld b,2
+	;; Time padding (15)
+	ld b,1			; (7)
 NG_LOOP:
-	djnz NG_LOOP
+	djnz NG_LOOP		; (13/8)
 	
 	;; Check value read is within range 1...9
 	;; 32/23/37 T-states (balanced by NO_NUM)
@@ -183,7 +184,7 @@ NG_LOOP:
 	ld (D_FILE+21*33+27),a ; (13)
 	ld a,b			; (4)
 
-	;; Reset counter and set increment
+	;; Reset counter and set increment (20)
 	ld hl, 0x0000		; (10)
 	ld de, 0x40		; (10)
 
@@ -195,7 +196,7 @@ NG_ADD:	add hl,de		; (11)
 	;; wasting memory)
 	ld (COUNT),hl		; (16)
 
-	;; Idle loop to ensure consistent runtime
+	;; Idle loop to ensure consistent runtime (19)
 	ld b,a			; (4)
 	ld a,0x0a		; (7)
 	sub b			; (4)
@@ -357,20 +358,21 @@ IDLE_W:	djnz IDLE_W		; (13/8)
 	;; Get user to press 'C' to start, which also allows us to check
 	;; which keyboard they are using (ZX80 or Minstrel 4D)
 	;;	
-	;; T = 1,283 (aiming for 1,283 T states)
+	;; T = 1,288 - no key, 1,281 - ZX80 'C', 1,283 - Ace 'C' (aiming
+	;; for 1,283 T states)
 	;; ----------------------------------------------------------------
 PRESS_C:	
-	;; Copy message to row 21 of display (613)
+	;; Copy message to row 21 of display (655)
 	ld hl, START_MSG	; (10)
 	ld bc, 0x001E		; (10)
 	ld de, D_FILE+21*33+1	; (10)
-	ldir			; ( = 21*27+16)
+	ldir			; ( = 21*29+16)
 
-	;; Read bottom-left half-row
+	;; Read bottom-left half-row (22)
 	ld bc, 0xFEFE		; (10)
 	in a,(c)		; (12)
 
-	;; Check if bit 3 (ZX80 'C') is reset
+	;; Check if bit 3 (ZX80 'C') is reset (28/39/34 - ZX80/ Ace/ None)
 	rra			; (4)
 	rra			; (4)
 	rra			; (4)
@@ -381,8 +383,8 @@ PRESS_C:
 	rra			; (4)
 	jr nc, ACEC		; (12/7)
 
-	;; No key pressed, so repeat (T=58 at this point)
-	ld b,0x2D		; (7)
+	;; No key pressed, so repeat (T=711, at this point)
+	ld b,0x2C		; (7)
 C_IDLE:	djnz C_IDLE		; (13/8)
 
 	ret			; (10)
@@ -390,7 +392,8 @@ C_IDLE:	djnz C_IDLE		; (13/8)
 ZX80C:	xor a			; (4)
 	ld (MODE),a		; (13)
 
-	ld b,0x29
+	;; 346 T-states
+	ld b,0x28
 CLOOP2:	djnz CLOOP2
 
 	jr CNEXT		; (12)
@@ -398,10 +401,9 @@ CLOOP2:	djnz CLOOP2
 ACEC:	ld a,0x01		; (7)
 	ld (MODE),a		; (13)
 
-	ld b,0x27
-CLOOP3:	djnz CLOOP3
-	
-	jr CNEXT		; (12)
+	;; Wait (463)
+	ld b,0x26		; (7)
+CLOOP3:	djnz CLOOP3		; (13/8)
 	
 	;; Update game-step counter to point to request coordinate (48)
 CNEXT:	pop de			; (10)
@@ -462,11 +464,11 @@ SK_DUMMY:
 	;;     1,278 T-states
 	;; ----------------------------------------------------------------
 REQ_COORD:	
-	;; Copy message to row 21 of display (613)
+	;; Copy message to row 21 of display (655)
 	ld hl, COORD_MSG	; (10)
 	ld bc, 0x001E		; (10)
 	ld de, D_FILE+21*33+1	; (10)
-	ldir			; ( = 21*27+16)
+	ldir			; ( = 21*29+16)
 
 	;; Update game-sequence counter (48)
 	pop de			; (10)
@@ -487,8 +489,8 @@ RC_LOOP:
 
 COORD_MSG:			; Request next move
 	db _SPACE, _E, _N, _T, _E, _R, _SPACE, _M
-	db _O, _V, _E, _S, _SPACE, _LEFTPARENTH, _C, _O
-	db _L, _SPACE, _F, _I, _R, _S, _T, _RIGHTPARENTH
+	db _O, _V, _E, _SPACE, _LEFTPARENTH, _C, _O, _L
+	db _SPACE, _F, _I, _R, _S, _T, _RIGHTPARENTH, _SPACE
 	db _SPACE, _SPACE, _SPACE, _SPACE, _SPACE, _SPACE, _SPACE, _SPACE
 
 
@@ -515,7 +517,7 @@ GET_COL:
 	;; Scan keyboard using brute force check for each key
 	;; to ensure consistent timing
 
-	;; Row 1 left (117...119 T states)
+	;; Row 1 left (109...111 T states)
 	ld d, 0xFF		; (7)
 	ld bc, 0xFBFE		; (10)
 	in a,(c)		; (12)
@@ -535,7 +537,7 @@ NO_R:	rra			; (4)
 	jr c, NO_T		; (12/7)
 	ld d, _T		; (7)
 
-	;; Row 1 right (110...112 T states)
+	;; Row 1 right (102...104 T states)
 NO_T:	ld bc, 0xDFFE		; (10)
 	in a,(c)		; (12)
 	rra			; (4)
@@ -554,7 +556,7 @@ NO_U:	rra			; (4)
 	jr c, NO_Y		; (12/7)
 	ld d, _Y		; (7)
 
-	;; Row 2 left (110...112 T states)
+	;; Row 2 left (102...104 T states)
 NO_Y:	ld bc, 0xFDFE		; (10)
 	in a,(c)		; (12)
 	rra			; (4)
@@ -573,7 +575,7 @@ NO_F:	rra			; (4)
 	jr c, NO_G		; (12/7)
 	ld d, _G		; (7)
 
-	;; Row 2 right (125...127 T states)
+	;; Row 2 right (117...119 T states)
 NO_G:	ld bc, 0xBFFE		; (10)
 	in a,(c)		; (12)
 	rra			; (4)
@@ -593,7 +595,7 @@ NO_H:	ld a,(MODE)		; (13)
 	and a			; (4)
 	jp nz, MODE_4D		; (12) - constant timing
 	
-	;; Row 3 left (96...98 T states)
+	;; Row 3 left (90...92 T states)
 	ld bc, 0xFEFE		; (10)
 	in a,(c)		; (12)
 	rra			; (4)
@@ -610,7 +612,7 @@ NO_C:	rra			; (4)
 	jr c, NO_V		; (12/7)
 	ld d, _V		; (7)
 
-	;; Row 3 right (94...96 T states)
+	;; Row 3 right (78...92 T states)
 NO_V:	ld bc, 0x7FFE		; (10)
 	in a,(c)		; (12)
 	rra			; (4)
@@ -626,11 +628,7 @@ NO_N:	rra			; (4)
 	ld d, _B		; (7)
 	jr NO_B			; (12)
 
-	nop			; (4)
-	nop			; (4)
-	nop			; (4)
-	
-	;; Row 3 left (82...84 T states)
+	;; Row 3 left (78...80 T states)
 MODE_4D:
 	ld bc, 0xFEFE		; (10)
 	in a,(c)		; (12)
@@ -646,7 +644,7 @@ ND_X:	rra			; (4)
 	jr c, ND_C		; (12/7)
 	ld d, _C		; (7)
 
-	;; Row 3 right (96...98 T states)
+	;; Row 3 right (90...92 T states)
 ND_C:	ld bc, 0x7FFE		; (10)
 	in a,(c)		; (12)
 	rra			; (4)
@@ -684,24 +682,24 @@ ND_V:	ld hl, D_FILE+33*21+26	; (10)
 	jr GC_KEY		; (7)
 	
 GC_NO_KEY:	
-	;; 818 so far
+	;; Print clock (436)
 	ld de, D_FILE+20*33+24	; (10)
 	call PRINT_CLOCK	; (426)
 
-	nop			; (4)
-	nop			; (4)
-	nop			; (4)
+	;; Wat (67)
+	ld b,5			; (7)
+GC_LOOP:
+	djnz GC_LOOP		; (13/8)
 	
 	ret			; (10)
 
-	;; 895
 GC_KEY:
 	;; Wait (372)
-	ld b, 0x1d		; (7)
+	ld b, 0x23		; (7)
 GC_LOOP2:
 	djnz GC_LOOP2		; (13/8)
 	
-	ret			; (10)
+TEND:	ret			; (10)
 
 LINE50:	db 0x76, 0x00, 0x32, _REM	; 50 REM 
 
@@ -1243,9 +1241,13 @@ CONT:	djnz ROW3		; (13/8)
 	;; ----------------------------------------------------------------
 	;; Read number
 	;; ----------------------------------------------------------------
-	;; 221 ... 223 T-states
+	;; Timing usually 221...223 T-states (poosibly more, if multiple
+	;; key presses)
 READNUM:	
 	ld d, 0xFF		; (7)
+
+	;; Read left-hand half of row 0 (102...104 T states, possibly up
+	;; to 110)
 	ld bc, 0xF7FE		; (10)
 	in a,(c)		; (12)
 
@@ -1265,13 +1267,15 @@ NO_4:	rra			; (4)
 	jr c, NO_5		; (12/7)
 	ld d, 0x05		; (7)
 
+	;; Read right-hand half of row 0 (102...104 T states, possibly
+	;; up to 110)
 NO_5:	ld bc, 0xEFFE		; (10)
 	in a,(c)		; (12)
 
 	rra			; (4)
 	jr c, NO_0		; (12/7)
-	ld d, 0x00		; (4)
-NO_0:	rra			; (7)
+	ld d, 0x00		; (7)
+NO_0:	rra			; (4)
 	jr c, NO_9		; (12/7)
 	ld d, 0x09		; (7)
 NO_9:	rra			; (4)
