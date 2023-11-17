@@ -16,7 +16,7 @@ There are two formats of the program available. The easiest to load is [hampson.
 
 There is also a [WAV](hampson.wav) file that can be played from a PC or MP3 player into a ZX80 or Minstrel 2 via the 'Ear' socket. Enter `LOAD` on the ZX80 (or Minstrel 2) and then start playback of the WAV file. You will be likely to need a little trial and error to get the volume level right.
 
-Once loaded, enter `GOTO 100` to start the game.
+Once loaded, enter `RUN` to start the game.
 
 
 ## Playing the Game
@@ -30,17 +30,13 @@ Coordinates are enterer as three-character references, with a letter followed by
 
 You can, if you wish, assemble the game yourself. For this, you will need a PC with an emulator (such as EightyOne) and a Z80 cross-assembler (I use the [non-GNU Z80 Assember](https://savannah.nongnu.org/projects/z80asm)).
 
-The game is contained in a single source file `hampson.asm`, though it does requre character code definitions from `../utilities/zx80_chars.asm`. The source code includes a ZX80 BASIC wrapper to make it easier to load into a ZX80. Once assembled, you should load the resulting code block into an emulator at address 0x4000. Once loaded, you should see a BASIC program on screen, listing from line 100. Before doing anything else, use 'SAVE' to create a proper BASIC loader version of the game. 
+The game is contained in a single source file `hampson.asm`, though it does requre character code definitions from `../utilities/zx80_chars.asm`. The source code includes a ZX80 BASIC wrapper to make it easier to load into a ZX80. Once assembled, you should load the resulting code block into an emulator at address 0x4000. This is a little tricky as, depending on which bit of the ZX80 monitor is running when you load the code, the ZX80 may crash.
 
-The machine code is embedded into REM statements in lines 10, 20, ..., 90. Do not try to list these lines, as this will almost certainly crash the ZX80. I have struggled to get the BASIC code from Line 100 right, so have simply inserted a REM statement telling you how to call the machine code. You may, however, wish to replace the BASIC from line 100 with something like:
+To work around this, you should first pause the emulator (e.g., press F3 in the EightyOne emulator), then load the code block (e.g., using [File] [Load Memory Block]). Finally, open the debugger (e.g., Ctrl-F6 in EightyOne) and set the program counter PC to address 0x0203, before resuming emulation.
 
-```
-100 RANDOMISE USR(16428)
-110 REM HAMPSONS PLANE
-120 REM
-130 REM TO RUN, ENTER
-140 REM "GOTO 100"
-```
+Once loaded, you should see a BASIC program on screen, listing from line 100. Before doing anything else, use 'SAVE' to create a proper BASIC loader version of the game. 
+
+The machine code is embedded into REM statements in lines 10, 20, ..., 90. Do not try to list these lines, as this will almost certainly crash the ZX80.
 
 ## Development
 
@@ -57,15 +53,16 @@ The game sequence is, as follows:
 1. Input skill level
 2. Randomise game board (Part 1)
 3. Randomise game board (Part 2)
-4. Read in column id
-5. Read in row id (first digit)
-6. Read in row id (second digit)
-7. Flip tile (Part 1)
-8. Flip tile (Part 2)
-9. Check if solved (jump to 4, if not)
+4. Prompt player to start the game
+5. Read in column id
+6. Read in row id (first digit)
+7. Read in row id (second digit)
+8. Flip tile (Part 1)
+9. Flip tile (Part 2)
+10. Check if solved (jump to 5, if not)
 10. Congratulate player (return to 1 on keypress)
 
-The sequencer itself requires 77 T states, leaving 1,287 T states for the functionality of each game step. The game will only move from one step to the next, if a certain condition is met. For example, the game will only move from Step 1 to Step 2, if the user presses a valid key (selecting a skill level between 1 and 9).
+The sequencer itself requires 77 T states, leaving 1,287 T states for the functionality of each game step. The game will only move from one step to the next, if a certain condition is met. For example, the game will only move from Step 1 to Step 2 if the user presses a valid key (selecting a skill level between 1 and 9).
 
 There seems to be some flexibility in exactly how long a game step is -- possibly anything within around 10 T states of the target of 1,287 is good enough. If the routine length is too far from the target, the screen will be displayed offset or will flicker.
 
