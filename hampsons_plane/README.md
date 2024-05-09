@@ -73,3 +73,7 @@ In developing the game, I relied on the following observations:
 - The ZX80 can serve the display from anywhere between 0x4000 and 0x8000. Store the location of the display in the system variables. Specifically, set the start of the display in DFILE (0x400C), the end of the display (one byte beyond) in DF_END (0x4010), and the start of the lower screen in DF_EA (0x400E).
 
 - When you return to BASIC (from executing a program or command) the ZX80 will relocate the screen to near the beginning of memory -- after System Variables and input buffer. This is possibly an issue if planning to work with both BASIC and machine code.
+
+The original version of Hampson's Plane was written by Mike Hampson in 1981 and published in [SYNC magazine](https://spectrumcomputing.co.uk/page.php?issue_id=6188&page=38) as a type-in BASIC program for the ZX80. Mike describes the game as an attempt to create a Rubik's Cube-like puzzle for the 2D screen of a microcomputer.
+
+I have included a tape image of the [original game](hampsons_plane_original.o) (and a corresponding [BASIC listing](hampsons_plane_original.b80)), if you would like to play that version. 
