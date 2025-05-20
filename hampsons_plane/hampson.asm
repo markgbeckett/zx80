@@ -95,7 +95,7 @@ V_ON:	in a, (0xFE)		; Turn on vertical sync generator
 	call JUMP_TO_IT		; (17 + 4 + routine cost)
 	
 	;; Generate display
-V_OFF:	out (0xFE),a		; Turn off vertical sync generation
+V_OFF:	out (0xFF),a		; Turn off vertical sync generation
 
 	ld a, 0xEC
 	ld b, 0x19
