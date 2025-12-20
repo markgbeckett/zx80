@@ -14,6 +14,7 @@ Notes:
 - Northern latitudes and Eastern longitudes are positive. So, for example, London's coordinates would be specified as +51.5072 and -0.1276, respectively. As another example, Rio de Janeiro's coordinates would be -22.9068 and -43.1729, respectively.
 - The timezone is specified as an adjustment to UTC time -- e.g., +1 for British Summer Time (BST).
 - Dates should be entered one component at a time -- e.g., 1st March 2023 would be entered as `1`, `<Enter>`, `3`, `<Enter>`, `2023`, `<Enter>`.
+- If you have a ZX Printer, you can make a hard copy of the output. Check that the variable `ZXP` is set to `1` in line 105 (or set to `0`, to turn this off).
 
 ## Acknowledgement
 
