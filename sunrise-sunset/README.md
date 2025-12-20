@@ -17,4 +17,4 @@ Notes:
 
 ## Acknowledgement
 
-The program is adapted from a BBC Micro listing created by R.G. Stuart of Mexico City, Mexico, and published in Sky and Telescope magazine (Sinnott, Roger W. "Sunrise Sunset Challenge: The Winners." Sky and telescope 89.3 (1995): 84-. Print).
+The program is adapted from a [BBC Micro listing](https://skyandtelescope.org/wp-content/uploads/sunup.bas) created by R.G. Stuart of Mexico City, Mexico, and published in Sky and Telescope magazine (Sinnott, Roger W. "Sunrise Sunset Challenge: The Winners." Sky and telescope 89.3 (1995): 84-. Print).
