@@ -47,7 +47,7 @@ ARRAY:	ld hl, (LIMIT)
 	sbc hl,de		; hl = LIMIT - BEGIN
 
 	ld (ADD2),hl		; Store for later use
-
+	inc hl			; Round up
 	sra h			; Divide by two, as two bytes per
 	rr l			; array element
 

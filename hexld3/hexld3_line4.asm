@@ -126,5 +126,24 @@ RESDON:	pop af
 
 	ret
 
+STORE_NEW:
+	ld a,(ADD2+1)
+
+	;; Set A to number of blocks
+	srl a
+	inc a
 	
-	
+	;; Initialise transfer
+	ld hl,(VARS)		; Point to start of first array
+	ex de,hl
+	ld hl,(BEGIN)
+
+SN_BLK:	ld bc, 0x0200
+	inc de
+	inc de
+	ldir
+
+	dec a
+	jr nz, SN_BLK
+
+	ret
