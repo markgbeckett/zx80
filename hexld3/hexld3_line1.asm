@@ -1,9 +1,13 @@
+	include "../utilities/zx80_chars.asm"
+
 	;; 4K ROM routines
 PRPOS:	equ 0x06E0		
 PRINT:	equ 0x0720
 VARS:	equ 0x4008
-FRAMES:	equ 16414
-	
+
+	;; System variables
+DF_END:	equ 0x4010
+FRAMES:	equ 0x401E
 
 	;; Main program
 	org 0x402B 		; REM statement at beginning of BASIC
@@ -120,7 +124,7 @@ PRINTSTATS:
 	ld hl, MDF_END
 	call PRINTSTRING
 	
-	ld hl,(0x4010)
+	ld hl,(0x4010)		; DF_END -- last address used by BASIC
 	ld a,h			; Print address
 	call HPRINT
 
@@ -173,8 +177,11 @@ PRINTSTRING:
 	
 	jr PRINTSTRING
 
-END:	
+END:
 
-MDF_END:  db 41, 43, 18, 42, 51, 41, 00, 255
-MBEGIN:	  db 39, 42, 44, 46, 51, 00, 00, 255
-MLIMIT:	  db 49, 46, 50, 46, 57, 00, 00, 255
+MDF_END:  db _D, _F, _MINUS, _E, _N, _D, _SPACE, 0xFF
+MBEGIN:	  db _B, _E, _G, _I, _N, _SPACE, _SPACE, 0xFF
+MLIMIT:	  db _L, _I, _M, _I, _T, _SPACE, _SPACE, 0xFF
+
+END1:	
+

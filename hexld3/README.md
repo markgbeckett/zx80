@@ -83,3 +83,12 @@ You will see, from Toni's book, that the program contains two routines and some 
 - The user is responsible for memory management. You need to ensure you do not write code to somewhere you should not (e.g., inside the BASIC workspace) and, if you extend the BASIC program, that it does not grow to overlap with your machine code.
 - Unlike for Toni's original version of the program, you do not need type `GOTO 500` when you load the program unless you have pre-existing machine code. Because HEXLD3 is stored in REM statements, it is immediately available for use.
 - I have (so far) added two extra routines. You can see the location and extent of your machine code, using `RUN 700`. This should help you to keep track of memory usage. You can start a new project, using `RUN 800` and then entering the start address (e.g., "org" address) for your new code. This will reset HEXLD3 variables, so it can no longer see any preexisting code you have written.
+
+# Building from source
+
+HEXLD3 is mostly written in Z80 machine code, with a BASIC wrapper. 
+For the ZX80 (4K BASIC) version, the machine code is stored in four `REM` statements at the beginning of the BASIC program, with the following addressing:
+- Line 1 : 402B--412A (4028) -- 256 bytes
+- Line 2 : 412F-- 422E (412C) -- 256 bytes
+- Line 3 : 4233--4332 (4230) -- 256 bytes
+- Line 4 : 4337--4436 (4334) -- 256 bytes
