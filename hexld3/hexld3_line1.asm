@@ -3,9 +3,10 @@
 	;; 4K ROM routines
 PRPOS:	equ 0x06E0		
 PRINT:	equ 0x0720
-VARS:	equ 0x4008
+DIM:	equ 0x0CD3		; DIM kernel in 4K ROM
 
 	;; System variables
+VARS:	equ 0x4008		; Pointer to start of user variables
 DF_END:	equ 0x4010
 FRAMES:	equ 0x401E
 

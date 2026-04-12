@@ -54,7 +54,7 @@ ARRAY:	ld hl, (LIMIT)
 	ret			; HL returned as output of USR()
 
 STORE:	ld hl,(VARS)
-	ld de, 0x0002
+	ld de, 0x0002		; Advance to start of array content
 	add hl,de
 	ex de,hl
 	ld hl,(BEGIN)
@@ -64,15 +64,14 @@ STORE:	ld hl,(VARS)
 
 RETRIEVE:
 	ld hl,(VARS)
-	inc hl
+	inc hl			; Advance to start of array content
 	inc hl
 	ld de,(BEGIN)
 	ld bc,(ADD2)
 	ldir
 	ret
 
-INSERT:
-	ld hl,(VARS)
+INSERT:	ld hl,(VARS)
 	push hl
 	ld bc, 0xFFFF
 MORE:	inc hl
