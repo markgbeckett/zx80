@@ -72,19 +72,24 @@ BCI:	call APRINT
 
 	jp DONE
 
+	;; Initialise one or more BASIC arrays to hold object-program
+	;; machine code for storing on tape
+	;; 
 INIT_ARRAY:
-	call ARRAY		; Retrieve length of code in words
+	call ARRAY		; Retrieve length of code in words (into HL)
 
 	;; HL contains number of words
-	ld b,h
-	ld a,l			; Check if multiple of 256
+	ld b,h			; B contains high byte of code length
+	ld a,l		
 	and a
-	jr z, IR_SKIP
-	inc b
+	jr z, IR_SKIP		; Check if multiple of 256
+	inc b			; Need to round up number of blocks
+				; (unless is multiple of 256)
 
-	call RESV
+	call RESV		; Make reservation
 
 	ret
+	
 IR_SKIP:
 
 	;; Reserve one or more blocks of 512 bytes in user variables, as
@@ -126,24 +131,63 @@ RESDON:	pop af
 
 	ret
 
+	;; Write object code to sequence of BASIC arrays ready to SAVE
+	;; to tape
+	;;
+	;; On entry:
+	;;   - BASIC arrays have been created using RSEV
+	;;   - BEGIN = start of object code block
+	;;   - ADD2 = length of object code block
 STORE_NEW:
-	ld a,(ADD2+1)
+	ld a,(ADD2+1)		; Retrieve high byte of length
 
-	;; Set A to number of blocks
+	;; Divide by two and round up to give number of 512-byte blocks
+	;; to be written
+	srl a
+	inc a
+	
+	;; Initialise transfer
+	ld de,(VARS)		; Point to start of first array
+	ld hl,(BEGIN)		; Point to start of object code
+
+	;; Transfer object code into arrays, 512 bytes at a time
+SN_BLK:	ld bc, 0x0200
+	inc de			; Advance past BASIC array header
+	inc de
+	ldir
+
+	;; Check if done
+	dec a
+	jr nz, SN_BLK
+
+	ret
+
+	;; Copy object code from BASIC arrays in which it is stored for
+	;; saving to tape to its executable location in memory
+	;; On entry:
+	;;   - BASIC arrays have been populated using STORE_NEW
+	;;   - BEGIN = start of object code block
+	;;   - ADD2 = length of object code block
+RETRIEVE_NEW:
+	ld a,(ADD2+1)		; Retrieve high byte of length
+
+	;; Divide by two and round up to give number of 512-byte blocks
+	;; to be read from
 	srl a
 	inc a
 	
 	;; Initialise transfer
 	ld hl,(VARS)		; Point to start of first array
-	ex de,hl
-	ld hl,(BEGIN)
+	ld de,(BEGIN)		; Point to start of object code
 
-SN_BLK:	ld bc, 0x0200
-	inc de
-	inc de
+	;; Transfer object code from arrays, 512 bytes at a time
+RN_BLK:	ld bc, 0x0200
+	inc hl			; Advance past BASIC array header
+	inc hl
 	ldir
 
+	;; Check if done
 	dec a
-	jr nz, SN_BLK
+	jr nz, RN_BLK
 
 	ret
