@@ -125,7 +125,7 @@ PRINTSTATS:
 	ld hl, MDF_END
 	call PRINTSTRING
 	
-	ld hl,(0x4010)		; DF_END -- last address used by BASIC
+	ld hl,(DF_END)		; DF_END -- last address used by BASIC
 	ld a,h			; Print address
 	call HPRINT
 
@@ -164,9 +164,9 @@ PRINTSTATS:
 	ld a,0x75
 	inc a
 	call APRINT
-	
-	ret
 
+	ret
+	
 PRINTSTRING:
 	ld a,(hl)
 	
