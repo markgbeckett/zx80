@@ -85,13 +85,11 @@ INIT_ARRAY:
 	jr z, IR_SKIP		; Check if multiple of 256
 	inc b			; Need to round up number of blocks
 				; (unless is multiple of 256)
-
+IR_SKIP:
 	call RESV		; Make reservation
 
 	ret
 	
-IR_SKIP:
-
 	;; Reserve one or more blocks of 512 bytes in user variables, as
 	;; BASIC integer arrays A(), B(), ...
 	;; 
@@ -191,3 +189,7 @@ RN_BLK:	ld bc, 0x0200
 	jr nz, RN_BLK
 
 	ret
+
+	;; Check if sufficient space to create BASIC arrays without overriding the object code.
+CHK_SPC:
+	
