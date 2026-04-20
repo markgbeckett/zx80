@@ -73,23 +73,102 @@ BCI:	call APRINT
 	jp DONE
 
 	;; Initialise one or more BASIC arrays to hold object-program
-	;; machine code for storing on tape
+	;; for storing on tape. Arrays will be named A(), B(), ... All
+	;; but the last array will contain 256 cells (512 bytes)
 	;; 
 INIT_ARRAY:
-	call ARRAY		; Retrieve length of code in words (into HL)
+	;; Work out size of code block in bytes
+	ld hl,(LIMIT)
+	ld de,(BEGIN)
 
-	;; HL contains number of words
-	ld b,h			; B contains high byte of code length
-	ld a,l		
+	and a			; Reset Carry and zero A (needed later)
+	sbc hl, de
+
+	ld (ADD2),hl		; Store for later
+
+	;; Check for zero-length code block
+	ld a,h
+	or l
+	ret z
+	
+	;; Work out how many 16-bit words needed to hold object code
+	;; (that is, divide size in bytes by 2 and round up)
+	srl h
+	rr l
+	jr nc, IA_SKIP 		; Carry set if need to round up
+	inc hl
+IA_SKIP:
+	; At this point, HL contains number of words needed to store the
+	; data. This can be regarded as H arrays of 256 elements
+	; (maximum possible) and one array of length L elements
+
+	;; Create arrays
+	ld a,_A			; Name of first array
+
+	push af			; Save current array name
+IA_LOOP:	
+	ld bc, BLK_SIZE		; Assume maximum array size
+
+	;; Check if last array and adjust size, if so
+	ld a,h
 	and a
-	jr z, IR_SKIP		; Check if multiple of 256
-	inc b			; Need to round up number of blocks
-				; (unless is multiple of 256)
-IR_SKIP:
-	call RESV		; Make reservation
+	jr nz, IA_CREATE
+
+	;; Update block size to be L
+	ld b,h			; A is always zero
+	ld c,l
+
+	;; At this point, BC contains array size
+IA_CREATE:
+	and a			; Update block size
+	sbc hl,bc
+	push hl			; Save new block count and size
+
+	push bc			; Save array size
+	dec bc			; DIM expects maximum index, which is
+				; one fewer than array size
+	call DIM		; On return, HL stores address of next
+				; byte after array
+	pop de			; Retrieve array size and convert to
+				; bytes (inlcuding two-byte header)
+	ex de,hl		; Move into HL (preserving end of array)
+	inc hl
+	add hl, hl
+	ex de,hl
+
+	;; At this point, DE contains length of array structure and HL
+	;; contains address immediately after array
+	and a			; Set HL to points to start of array
+	sbc hl,de		; structure
+
+	pop de			; Retrieve block count and final-block size
+	pop af			; Retrieve array name
+
+	;; Write array name
+	xor 0x80
+	ld (hl),a
+	xor 0x80
+
+	;; Update array name
+	inc a
+	push af
+	
+	ex de,hl		; Retrieve block count and final-block
+				; size into HL
+
+	;; Check if more blocks
+IA_NEXT:
+	ld a,h
+	or l
+	jr nz, IA_LOOP
+
+	;; Done
+IA_DONE:
+	pop af			; Balance stack
+	scf			; Indicates success
 
 	ret
-	
+
 	;; Reserve one or more blocks of 512 bytes in user variables, as
 	;; BASIC integer arrays A(), B(), ...
 	;; 
