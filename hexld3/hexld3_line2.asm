@@ -41,9 +41,15 @@ CHECK_WR:
 	ret
 	
 	;;  Compute size of array required to hold machine code
+	;;
+	;; On entry:
+	;;
+	;; On exit:
+	;;   HL - size of code in words (rounded up)
+	;;   ADD2 - length of code in bytes
 ARRAY:	ld hl, (LIMIT)
 	ld de, (BEGIN)
-	and a
+	and a			; Reset Carry
 	sbc hl,de		; hl = LIMIT - BEGIN
 
 	ld (ADD2),hl		; Store for later use
