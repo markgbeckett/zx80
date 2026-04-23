@@ -78,164 +78,116 @@ BCI:	call APRINT
 	;; 
 INIT_ARRAY:
 	;; Work out size of code block in bytes
-	ld hl,(LIMIT)
-	ld de,(BEGIN)
+	ld hl,(LIMIT)		; End of user code
+	ld de,(BEGIN)		; Start of user code
+	and a			; Clear carry
+	sbc hl, de		; Compute length
 
-	and a			; Reset Carry and zero A (needed later)
-	sbc hl, de
-
-	ld (ADD2),hl		; Store for later
-
-	;; Check for zero-length code block
-	ld a,h
-	or l
+	;; Return if zero, or otherwise will store a block of 0x10000
+	;; bytes, which is incorrect.
 	ret z
-	
-	;; Work out how many 16-bit words needed to hold object code
-	;; (that is, divide size in bytes by 2 and round up)
-	srl h
-	rr l
-	jr nc, IA_SKIP 		; Carry set if need to round up
-	inc hl
-IA_SKIP:
-	; At this point, HL contains number of words needed to store the
-	; data. This can be regarded as H arrays of 256 elements
-	; (maximum possible) and one array of length L elements
 
-	;; Create arrays
-	ld a,_A			; Name of first array
+	;; Store address of next byte of code to be saved for later
+	ld (ADD2),de		
+
+	;; Work out how many 16-bit words are needed to hold object code
+	;; (that is, divide size in bytes by 2 and round up)
+	inc hl			; Ensures round up
+	srl h			; Divide by two
+	rr l
+
+	; At this point, HL contains number of words needed to store the
+	; data. 
+
+	;; Initialise array name
+	ld a,_A	| 0x80		; Name of first array (with array
+				; indicator set)
 
 	push af			; Save current array name
+
 IA_LOOP:	
-	ld bc, BLK_SIZE		; Assume maximum array size
+	ld bc, BLK_SIZE		; Assume will need maximum array size
 
 	;; Check if last array and adjust size, if so
 	ld a,h
 	and a
 	jr nz, IA_CREATE
 
-	;; Update block size to be L
-	ld b,h			; A is always zero
+	;; Update block size to be HL, since will fit in single array
+	ld b,h			
 	ld c,l
 
-	;; At this point, BC contains array size
+	;; At this point, BC contains array size (in words)
 IA_CREATE:
-	and a			; Update block size
+	and a			; Update length of remainder of block
 	sbc hl,bc
-	push hl			; Save new block count and size
 
-	push bc			; Save array size
+	push hl			; Save length of remainder of block and
+	push bc			; and current array size (words)
+	
 	dec bc			; DIM expects maximum index, which is
 				; one fewer than array size
 	call DIM		; On return, HL stores address of next
 				; byte after array
 	pop de			; Retrieve array size and convert to
-				; bytes (inlcuding two-byte header)
-	ex de,hl		; Move into HL (preserving end of array)
+				; bytes (including two-byte header)
+	ex de,hl		; Move into HL (preserving end of array
+				; in DE)
+
+	;; Compute 2*(array_length+1), which is size of array structure
+	;; in memory
 	inc hl
 	add hl, hl
-	ex de,hl
 
-	;; At this point, DE contains length of array structure and HL
-	;; contains address immediately after array
+	push hl			; Store array-structure size
+
+	ex de,hl		; Swap and end array structure into HL
+				; and length of array structure into DE
+
+	;; Find start of aray in memory
 	and a			; Set HL to points to start of array
 	sbc hl,de		; structure
 
-	pop de			; Retrieve block count and final-block size
-	pop af			; Retrieve array name
+	pop bc		     	; Retrieve array-structure size (bytes)
+	dec bc			; Convert to array size (bytes) by
+	dec bc			; deducting space for header
+	
+	pop de			; Temporarily retrieve size of remainder
+	pop af			; of code (so can get array name)
 
 	;; Write array name
-	xor 0x80
 	ld (hl),a
-	xor 0x80
 
-	;; Update array name
+	;; Update array name and put back on stack (along with count of
+	;; remaining code)
 	inc a
 	push af
-	
-	ex de,hl		; Retrieve block count and final-block
-				; size into HL
+	push de			; Store block count and final-block size
 
-	;; Check if more blocks
+	;; Advance to start of array body
+	inc hl
+	inc hl			; Advance HL to start of array body
+
+	;; ... and move to DE (destination) ready for block copy
+	ex de,hl		; and move into DE
+
+	ld hl,(ADD2)		; Retrieve current position in array
+	ldir			; and copy block of code (BC contains
+				; length, as calculated earlier)
+	ld (ADD2),hl		; Store new code pointer
+	
+	;; Check if done (length of remaining code is zero)
+	pop hl			; Retrieve length of remainder of code
+
 IA_NEXT:
 	ld a,h
 	or l
-	jr nz, IA_LOOP
+	jr nz, IA_LOOP		; Repeat, if not
 
 	;; Done
 IA_DONE:
 	pop af			; Balance stack
 	scf			; Indicates success
-
-	ret
-
-	;; Reserve one or more blocks of 512 bytes in user variables, as
-	;; BASIC integer arrays A(), B(), ...
-	;; 
-	;; On entry:
-	;;   B - number of blocks to create
-	;;
-	;; On exit:
-	;;   Carry - Set = success
-RESV:	ld a,_A			; Set array name
-        push af			; Save array name
-RESBLK:	push bc			; Save block count
-
-	ld bc, BLK_SIZE-1	; Max index for DIM
-	call DIM
-
-	;; Scan back to start of array
-	ld de,2*BLK_SIZE+2
-	and a
-	sbc hl,de
-
-	pop bc
-	pop af
-
-	xor $80			; Apply mask
-	ld (hl),a	
-	xor $80			; Revert mask
-	
-	;; Update array name
-	inc a 			
-	push af
-
-	djnz RESBLK
-
-	;; Balance stack and confirm success
-RESDON:	pop af
-	scf
-
-	ret
-
-	;; Write object code to sequence of BASIC arrays ready to SAVE
-	;; to tape
-	;;
-	;; On entry:
-	;;   - BASIC arrays have been created using RSEV
-	;;   - BEGIN = start of object code block
-	;;   - ADD2 = length of object code block
-STORE_NEW:
-	ld a,(ADD2+1)		; Retrieve high byte of length
-
-	;; Divide by two and round up to give number of 512-byte blocks
-	;; to be written
-	srl a
-	inc a
-	
-	;; Initialise transfer
-	ld de,(VARS)		; Point to start of first array
-	ld hl,(BEGIN)		; Point to start of object code
-
-	;; Transfer object code into arrays, 512 bytes at a time
-SN_BLK:	ld bc, 0x0200
-	inc de			; Advance past BASIC array header
-	inc de
-	ldir
-
-	;; Check if done
-	dec a
-	jr nz, SN_BLK
 
 	ret
 
@@ -245,30 +197,76 @@ SN_BLK:	ld bc, 0x0200
 	;;   - BASIC arrays have been populated using STORE_NEW
 	;;   - BEGIN = start of object code block
 	;;   - ADD2 = length of object code block
-RETRIEVE_NEW:
-	ld a,(ADD2+1)		; Retrieve high byte of length
+RESTORE_CODE:
+	;; Work out size of code block in bytes
+	ld hl,(LIMIT)		; End of user code
+	ld de,(BEGIN)		; Start of user code
+	and a			; Clear carry
+	sbc hl, de		; Compute length
 
-	;; Divide by two and round up to give number of 512-byte blocks
-	;; to be read from
-	srl a
-	inc a
+	;; Return if zero, or otherwise will store a block of 0x10000
+	;; bytes, which is incorrect.
+	ret z
+
+	;; Store address of next byte of code to be restored for later
+	ld (ADD2),de		
+
+	;; Work out how many 16-bit words are needed to hold object code
+	;; (that is, divide size in bytes by 2 and round up)
+	inc hl			; Ensures round up
+	srl h			; Divide by two
+	rr l
+
+	;; Point DE to start of first array
+	ld de,(VARS)
+
+RC_LOOP:
+	;; Advance to body of array
+	inc de
+	inc de
+
+	;; Work out block size
+	ld bc, BLK_SIZE
+
+	;; Check if last array and adjust size, if so
+	ld a,h
+	and a
+	jr nz, RC_READ
+
+	;; Update block size to be HL, since will fit in single array
+	ld b,h			
+	ld c,l
+
+	;; At this point, BC contains array size (in words)
+RC_READ:
+	and a			; Update length of remainder of block
+	sbc hl,bc
 	
-	;; Initialise transfer
-	ld hl,(VARS)		; Point to start of first array
-	ld de,(BEGIN)		; Point to start of object code
+	push hl			; Save code remainder
 
-	;; Transfer object code from arrays, 512 bytes at a time
-RN_BLK:	ld bc, 0x0200
-	inc hl			; Advance past BASIC array header
-	inc hl
+	;; Convert block length to bytes
+	ld h,b
+	ld l,c
+	add hl,hl
+	ld b,h
+	ld c,l
+	
+	ld hl,(ADD2)		; Retrieve destination for next byte
+
+	ex de,hl		; Prep for block copy
+
 	ldir
 
-	;; Check if done
-	dec a
-	jr nz, RN_BLK
+	ex de,hl
+	ld (ADD2),hl
+
+	pop hl
+
+	ld a,h
+	or l
+	jr nz, RC_LOOP
+
+	;; Done
+	scf
 
 	ret
-
-	;; Check if sufficient space to create BASIC arrays without overriding the object code.
-CHK_SPC:
-	
