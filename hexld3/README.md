@@ -25,6 +25,7 @@ Most notably, I have moved the HEXLD3 (subject) code into REM statements at the 
 There are a small number of drawbacks, however:
 - You must never list Lines 1, 2, 3, or 4 of the program, as doing so will likely crash the computer. Using `POKE 16403, 10` reduces the risk of this happening.
 - When relocating the code into the REM statements, I needed to remove any code that assembled to the opcode 0x76, as this is the end-of-line code for 4K BASIC and will confuse the BASIC interpretter.
+- There is a small risk (I guess one in 256) of inadvertently inserting 0x76 into the REM statement, if your machine-code project starts or ends at an address that contains the value 0x76 as either the high byte or low byte. That is because the start and end of your program are kept alonside the HEXLD3 program in the REM statements. You could work around this by padding your program a little, though unless you are incredibly dilligent, you are unlikely to spot this problem before it is too late (and your computer has crashed). This makes it even more important to save your work frequently.
 
 Since completing the original port, I have made some further improvements, which hopefully make HEXLD3 more usable:
 - I added the improved code-listing capability, which is described by Toni Baker as "level 2" disassembly, in which object code is grouped together by instruction. So, for example `call 0x4800` would be displayed as `CD0048` in the Level 2 disassembly. It may not seem much of an improvement but it makes it almost impossible to lose your place when checking code. 
@@ -78,9 +79,41 @@ The program was assembled to address 0x4A00 in memory. You can see the extent of
 
 You will see, from Toni's book, that the program contains two routines and some program data. In this version, the START routines starts at 0x4A08 and the NEXGEN routine starts at 0x4A34.  
 
+Note: The Life demo was created with an earlier version of HEXLD3, before I enabled support for programs longer than 512 bytes. This is not an issue: the code for Life easily fits into 512 bytes, though could be an issue if you have ambitious plans to extend or enhance the program.
+
+## Demo N. 2 -- Draughts
+
+In the second half of the book, the reader progressively develops an implementation of the game Draughts (also, know as Checkers (US) or Dames (Fr)). Again, the book focused on the ZX81 implementation, with pointers for those using a ZX80 (4K BASIC) on how to adapt the program for that platform.
+
+I am in the process of creating the adaptation for 4K BASIC and have encountered some obstacles.
+
+Most obviously, the 4K BASIC version of HEXLD3 -- as provided by Toni -- only permits 512 bytes of object code, whereas the implementation of Draughts is closer to 1 kilobyte. This was the motivation for me updating HEXLD3 to remove this limitation.
+
+You can try the in-progress implementation using the following steps:
+
+1. Open the tape archive file  [draughts.o](draughts.o) in your emulator, or copy to your SD card (if using ZXpand).
+2. Type `LOAD` to load the program (or type `LOAD "DRAUGHTS"`, if using ZXpand).
+3. Type `GOTO 500` to restore the machine code back into memory.
+4. Type `RUN 8` to run the program.
+
+The game board is displayed in the top half of the screen and the player plays as Black.
+
+When you run the program, you will be prompted for a move. Each move is entered as a string starting with a two-digit coordinate (row followed by column) of the counter to move, followed by a sequence of one or more moves. The four possible directions are indicated by "A" (up and left), "B" (up and right), "C" (down and right), and "D" (down and left). You will automatically capture an opponent's piece if that is possible and, if capturing multiple counters is possible, you can enter a sequence of direction commands.
+
+For the 4K BASIC port, the move-entry procedure is complicated a little in that you have to prefix your move with a two-character code, to make the ZX80 BASIC string look like a ZX81 BASIC string (effectively, adding a string length value). For a one-step move, you prefix your move with <Shift+W> and <Space>. For a two-step move, you use <Shift+E> and <Space>, and so on.
+
+(Aside: The sequence <Shift+W> followed by <Space> stores the bytes 03 and 00 at the beginning of the string in memory, which is little Endian form of the number '3', which is the length of the remaining string.)
+
+Known issues:
+- The block size for various board-copy operations is too short, meaning the last couple of cells of the game board are lost. (FIXED)
+- Entering moves on the 4K BASIC version requires an odd two-character prefix. (TO FIX)
+- Game board is not updated with final move, at end game. (TO FIX)
+- Once you start the game, you cannot exit, except by resetting the machine. (TO FIX)
+
+
 ## Notes
 
-- The program HEXLD3 is unforgiving and has almost no error checking. Inputs are typically four-digit hex numbers for addresses, or sequences of one or more two-digit hex numbers for data. The validity of inputs is not checked: the code will naively convert your input into numerical data as best as it can.
+- You should save your work frequently as  HEXLD3 is unforgiving and has almost no error checking. Inputs are typically four-digit hex numbers for addresses, or sequences of one or more two-digit hex numbers for data. The validity of inputs is not checked: the code will naively convert your input into numerical data as best as it can.
 - The program will stop if the cursor reaches the bottom of the screen; for example, when listing code or entering code. In some cases, `CONTINUE` (typed immediately after the stoppage) will allow you to continue. Alternatively, (for example, when entering code) re-run the correct part of the program and enter the next address at which code is to be inserted.
 - The user is responsible for memory management. You need to ensure you do not write code to somewhere you should not (e.g., inside the BASIC workspace) and, if you extend the BASIC program, that it does not grow to overlap with your machine code. As noted above, you should also leave sufficient space for the save function to create temporary arrays in the BASIC workspace.
 - Unlike for Toni's original version of the program, you do not need type `GOTO 500` when you load the program unless you have pre-existing machine code. Because HEXLD3 is stored in REM statements, it is immediately available for use.
