@@ -21,8 +21,10 @@ D_FILE:		equ 0x400C
 	;; variables)
 INITIAL: 	equ 0x4019
 SQCHK:	 	equ 0x401C		
+FRAMES:		equ 0x401E
 SCANSQ:		equ 0x4020
 POINTER:	equ 0x4022
+LBASE:		equ POINTER
 WKBOARD:	equ 0x4B3C 	; 4B3C--4B67: WKBOARD Working copy of
 				; board
 	
@@ -317,68 +319,68 @@ NOKING:	ld (hl),c
 	
 ;; 4D80	4DA8	BDSCAN		Check for possible computer moves
 
-;; BOARDSCAN:			;4D8A
-;; 	ld (LBASE),SP		; Save base of stack
-;; 	ld bc,0x0000
-;; 	push bc
-;; 	ld hl,WKBOARD
-;; NXTCHK:	ld a,(hl)
-;; 	or 0x80			; Do not worry about king
-;; 	cp _W+0x80		; Is it computer piece
+BOARDSCAN:			;4D8A
+	ld (LBASE),SP		; Save base of stack
+	ld bc,0x0000
+	push bc
+	ld hl,WKBOARD
+NXTCHK:	ld a,(hl)
+	or 0x80			; Do not worry about king
+	cp _W+0x80		; Is it computer piece
 
-;; 	ld (SQCHK),hl		; Save current square
-;; 	jp z, EVALUATE
+	ld (SQCHK),hl		; Save current square
+	jp z, EVALUATE
 
-;; KPCHKNG:
-;; 	ld hl,(SQCHK)		; Restore current square
-;; 	inc l
-;; 	ld a,l
-;; 	cp 0x66			; Check if end of board
-;; 	jr nz, NXTCHK
+KPCHKNG:
+	ld hl,(SQCHK)		; Restore current square
+	inc l
+	ld a,l
+	cp 0x66			; Check if end of board
+	jr nz, NXTCHK
 	
 
-;; 	;; Simple random number generator, picks an integer 0, .... B-1
-;; 	;; 
-;; CHOOSE:	ld a,(FRAMES)		;4DA9
-;; REPEAT:	sub b
-;; 	jr nc,REPEAT
-;; 	add a,b
+	;; Simple random number generator, picks an integer 0, .... B-1
+	;; 
+CHOOSE:	ld a,(FRAMES)		;4DA9
+REPEAT:	sub b
+	jr nc,REPEAT
+	add a,b
+	pop bc
+	ld b,c
+	jr z, FIRSTOFF
+NSQOFF:	inc sp
+NEXTOFF:
+	inc sp
+	djnz NEXTOFF
+	ld b,c
+	dec a
+	jr nz, NSQOFF
 
-;; 	pop bc
-;; 	ld b,c
-;; 	jr z, FIRSTOFF
-;; NSQOFF:	inc sp
-;; NEXTOFF:
-;; 	inc sp
-;; 	djnz NEXTOFF
-;; 	ld b,c
-;; 	dec a
-;; 	jr nz, NSQOFF
+FIRSTOFF:
+	pop hl
+	ld h,WKBOARD>>8
+	ld b,c
+NEXTSTEP:
+	dec sp
+	pop de
+	ld c,(hl)
+	ld hl,_SPACE+0x80
+	ld a,l
+	add a,e
+	ld l,a
+	ld a,(hl)
+	cp 0x80
+	jr z,SQUARE
+	ld (hl),0x80
+	ld a,l
+	add a,e
+	ld l,a
+SQUARE:	ld (hl),c
+	djnz NEXTSTEP
 
-;; 	pop hl
-;; 	ld h,WKBOARD>>8
-;; 	ld b,c
-;; NEXTSTEP:
-;; 	dec sp
-;; 	pop de
-;; 	ld c,(hl)
-;; 	ld hl,_SPACE+0x80
-;; 	ld a,l
-;; 	add a,e
-;; 	ld l,a
-;; 	ld a,(hl)
-;; 	cp 0x80
-;; 	jr z,SQUARE
-;; 	ld (hl),0x80
-;; 	ld a,l
-;; 	add a,e
-;; 	ld l,a
-;; SQUARE:	ld (hl),c
-;; 	djnz NEXTSTEP
-
-;; 	ld sp,(LBASE)
-;; 	ld c,0xA7
-;; 	call GAMEOVER
+	ld sp,(LBASE)
+	ld c,0xA7
+	call GAMEOVER
 	
 ;; 4DDE	4DF0	BDPRINT		Duplicate working board to screen (and
 ;; 				exit to BASIC)
@@ -522,8 +524,11 @@ LDI:	ldi
 ;; 	ret
 	
 
+	db $4E43-$
 ;; 4E43	4E9E	EVALUATE	Sub: Score possible computer move
-
+EVALUATE:
+	jp $4DD5
+	
 ;; g4E9F	4ED1	WHAT		
 
 ;;         4ED1	END
