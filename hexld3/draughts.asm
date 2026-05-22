@@ -94,7 +94,7 @@ IMOVE:	db _I, _L, _L, _E, _G, _A, _L, _SPACE
 	;;   Returns to parent of calling routine
 	
 ERROR:	pop hl			; Retrieve error code, which immediately
-				; follows call to this routine
+	ld a,(hl)		; follows call to this routine
 
 	;; Set DE to point to print location
 	ld hl,(D_FILE)	
