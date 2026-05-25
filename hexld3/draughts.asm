@@ -22,7 +22,7 @@ D_FILE:		equ 0x400C
 INITIAL: 	equ 0x4019
 SQCHK:	 	equ 0x401C		
 FRAMES:		equ 0x401E
-SCANSQ:		equ 0x4020
+SCANSQR:	equ 0x4020
 POINTER:	equ 0x4022
 LBASE:		equ POINTER
 WKBOARD:	equ 0x4B3C 	; 4B3C--4B67: WKBOARD Working copy of
@@ -315,9 +315,8 @@ NOKING:	ld (hl),c
 	pop hl
 	ld c,0xBC
 	call GAMEOVER
-	jp BDPRINT
 	
-;; 4D80	4DA8	BDSCAN		Check for possible computer moves
+;; 4D8A	4DA8	BDSCAN		Check for possible computer moves
 
 BOARDSCAN:			;4D8A
 	ld (LBASE),SP		; Save base of stack
@@ -364,7 +363,7 @@ NEXTSTEP:
 	dec sp
 	pop de
 	ld c,(hl)
-	ld hl,_SPACE+0x80
+	ld (hl),_SPACE+0x80
 	ld a,l
 	add a,e
 	ld l,a
@@ -398,138 +397,229 @@ LDI:	ldi
 	ret
 	
 
-;; 	;; 4DF1	4E42	SQUAREVAL	Sub: Work out value of square
-;; 	;;                           +------------+
-;; 	;;                           |            |
-;; 	;;                           |  human's   |
-;; 	;;                           |   piece    |
-;; 	;;      PROTECTING           |            |
-;; 	;;                           |            |
-;; 	;;              +------------+------------+            +------------+
-;; 	;;              |            |                         |            |
-;; 	;;              | computer's |                         |  human's   |
-;; 	;;              |   piece    |                         |   piece    |
-;; 	;;              |            |                         |            |
-;; 	;;              |            |                         |            |
-;; 	;; +------------+------------+            +------------+------------+
-;; 	;; |   square   |                         |   square   |
-;; 	;; |   being    |                         |   being    |
-;; 	;; |   valued   |                         |   valued   |
-;; 	;; |     --     |                         |     --     |
-;; 	;; |     us     |                         |     us     |
-;; 	;; +------------+            +------------+------------+
-;; 	;;                           |            |
-;; 	;;                           |            |
-;; 	;;                           |   blank    |        IN DANGER
-;; 	;;                           |   square   |
-;; 	;;                           |            |
-;; 	;;                           +------------+
-;; SQUAREVAL:
-;; 	;; Save registers
-;; 	push bc
-;; 	push de
-;; 	push hl
+	;; 4DF1	4E42	SQUAREVAL	Sub: Work out value of square
+	;;                           +------------+
+	;;                           |            |
+	;;                           |  human's   |
+	;;                           |   piece    |
+	;;      PROTECTING           |            |
+	;;                           |            |
+	;;              +------------+------------+            +------------+
+	;;              |            |                         |            |
+	;;              | computer's |                         |  human's   |
+	;;              |   piece    |                         |   piece    |
+	;;              |            |                         |            |
+	;;              |            |                         |            |
+	;; +------------+------------+            +------------+------------+
+	;; |   square   |                         |   square   |
+	;; |   being    |                         |   being    |
+	;; |   valued   |                         |   valued   |
+	;; |     --     |                         |     --     |
+	;; |     us     |                         |     us     |
+	;; +------------+            +------------+------------+
+	;;                           |            |
+	;;                           |            |
+	;;                           |   blank    |        IN DANGER
+	;;                           |   square   |
+	;;                           |            |
+	;;                           +------------+
+SQUAREVAL:
+	;; Save registers
+	push bc
+	push de
+	push hl
 
-;; 	ld b,0x00		; Flag to dictate what is checked
-;; 				; (0=protection; 1=danger)
+	ld b,0x00		; Flag to dictate what is checked
+				; (0=protection; 1=danger)
 
-;; STARTOFF:
-;; 	ld de, TABLE		; DE points to directions table
+STARTOFF:
+	ld de, TABLE		; DE points to directions table
 
-;; 	;; Retrieve next direction into C
-;; NOWT:	ld a,(de)
-;; 	ld c,a
+	;; Retrieve next direction into C
+NOWT:	ld a,(de)
+	ld c,a
 
-;; 	;; Check for end of table (fragile, as relies on knowing what
-;; 	;; follows table)
-;; 	sub 0x2E		
-;; 	jr z, EXIT
+	;; Check for end of table (fragile, as relies on knowing what
+	;; follows table)
+	sub 0x2E		
+	jr z, EXIT
 
-;; 	inc e			; Advance pointer to next direction in
-;; 				; table (why not inc DE?), for
-;; 				; subsequent loop
+	inc e			; Advance pointer to next direction in
+				; table (why not inc DE?), for
+				; subsequent loop
 
-;; 	;; Restore location of square being evaluated from stack
-;; 	pop hl
-;; 	push hl
-;; 	ld h, WKBOARD>>8	; Retrieve high-byte of workspace-board
-;; 				; address
+	;; Restore location of square being evaluated from stack
+	pop hl
+	push hl
+	ld h, WKBOARD>>8	; Retrieve high-byte of workspace-board
+				; address
 
-;; 	;; Find next square in current direction (or next-but-one if
-;; 	;; checking for protection)
-;; 	ld a,l			; Requires accumulator
-;; 	add a,c			; Add direction offset
-;; 	bit 0,b			; Are we checking protection or danger
-;; 	jr nz, LA		; Skip if checking for danger
-;; 	add a,c			; Add direction offset again
-;; LA:	ld l,a			; HL points to new square
+	;; Find next square in current direction (or next-but-one if
+	;; checking for protection)
+	ld a,l			; Requires accumulator
+	add a,c			; Add direction offset
+	bit 0,b			; Are we checking protection or danger
+	jr nz, LA		; Skip if checking for danger
+	add a,c			; Add direction offset again
+LA:	ld l,a			; HL points to new square
 
-;; 	;; Work out if protected/ protecting
-;; 	ld a %01111111		; 
-;; 	or c			; Set Bit 7, if direction is 'up' board
-;; 	and (hl)		; If player piece is normal and below or
-;; 				; king and anywhere, will be "B" (0x27);
-;; 				; otherwise, will be something else
+	;; Work out if protected/ protecting
+	ld a, %01111111		; 
+	or c			; Set Bit 7, if direction is 'up' board
+	and (hl)		; If player piece is normal and below or
+				; king and anywhere, will be "B" (0x27);
+				; otherwise, will be something else
 
-;; 	;; Move on if not an opportunity (B=0) / threat (B=1)
-;; 	cp _B
-;; 	jr nz, NOWT
+	;; Move on if not an opportunity (B=0) / threat (B=1)
+	cp _B
+	jr nz, NOWT
 
-;; 	;; Reverse back one square and retrieve square's contents
-;; 	ld a,l			; 4E14
-;; 	sub c
-;; 	ld l,a
-;; 	ld a,(hl)
+	;; Reverse back one square and retrieve square's contents
+	ld a,l			; 4E14
+	sub c
+	ld l,a
+	ld a,(hl)
 
-;; 	;; Check for player piece
-;; 	scf
-;; 	rla			; 9-bit rotation left
-;; 	bit 0,b			;
-;; 	jr nz, LB
-;; 	cp 0x79			; If piece is a "B"
-;; 	jr nz, NOWT
-;; 	ld a,(hl)
-;; 	rla			; Carry set for normal/ reset for king
+	;; Check for player piece
+	scf
+	rla			; 9-bit rotation left
+	bit 0,b			;
+	jr nz, LB
+	cp 0x79			; If piece is a "B"
+	jr nz, NOWT
+	ld a,(hl)
+	rla			; Carry set for normal/ reset for king
 
 
-;; LB:	ccf
-;; 	ld a, 0x81
-;; 	rla
-;; 	rla
-;; EXIT:	bit 0,b
-;; 	jr nz, LC
+LB:	ccf
+	ld a, 0x81
+	rla
+	rla
+EXIT:	bit 0,b
+	jr nz, LC
 
-;; 	inc b
-;; 	ld h,a
-;; 	ex (sp),hl
+	inc b
+	ld h,a
+	ex (sp),hl
 
-;; 	push hl
-;; 	jr STARTOFF
-;; LC:	ld d,a
-;; 	ld a,l
-;; 	sub c
-;; 	ld l,a
-;; 	ld a,(hl)
-;; 	cp 0x80
-;; 	jr z, NOWT
-;; 	ld a,d
-;; 	pop hl
-;; 	pop de
+	push hl
+	jr STARTOFF
+LC:	ld d,a
+	ld a,l
+	sub c
+	ld l,a
+	ld a,(hl)
+	cp 0x80
+	jr z, NOWT
+	ld a,d
+	pop hl
+	pop de
 	
-;; 	sub d
+	sub d
 
-;; 	pop de
-;; 	pop bc
+	pop de
+	pop bc
 
-;; 	ret
+	ret
 	
-
-	db $4E43-$
 ;; 4E43	4E9E	EVALUATE	Sub: Score possible computer move
 EVALUATE:
-	jp $4DD5
+	call SQUAREVAL
+	add a, 0x80		; Normalise move score to 0x80
+	ld (INITIAL),a
 	
-;; g4E9F	4ED1	WHAT		
+	ld de, TABLE
+	ld c,l
+NXTMRND:
+	ld l,c
+	ld h,WKBOARD>>8
+NXTDIR:	ld a,(de)
+	inc e
+	bit 7,(hl)
+	jr z,ANYDIR
+	bit 7,a
+	jr nz, NXTDIR
+ANYDIR:	cp 0x2E
+	jp z,KPCHKNG
+	push bc
 
-;;         4ED1	END
+	ld b,a
+	add a,c
+	ld l,a
+	ld a,(hl)
+	ld h,b
+
+	pop bc
+
+	cp 0x80
+TEST:	jr nz,NXTMRND
+	ld (SCANSQR),de
+
+	call SQUAREVAL
+
+NEWPRI:	ld d,a
+	ld a,(INITIAL)
+	sub d
+	ld d,a
+	ld e,0x01
+	ld l,c
+
+	ex (sp),hl
+	and a
+	sbc hl,de
+	jr z,EQUAL
+	add hl,de
+	ex (sp),hl
+	jr nc, FORGETIT
+
+	ld sp,(LBASE)
+	ld b,0x00
+	push de
+	jr NEWITEM
+EQUAL:	add hl,de
+	ex (sp),hl
+NEWITEM:
+	inc b
+	push hl
+	inc sp
+	inc sp
+	ex (sp),hl
+	dec sp
+	dec sp
+	ex (sp),hl
+
+FORGETIT:
+	ld de,(SCANSQR)
+	jr NXTMRND
 	
+;; 4E9F	4ED1	WHAT		
+WHAT:	ld (SCANSQR),de
+	ld d,a
+	and 0x7F
+	cp 0x27
+	jr z,FOUND
+	ld de,(SCANSQR)
+	jr NXTMRND
+FOUND:	ld a,0x81
+	rl d
+	ccf
+	rla
+	rla
+	ld d,a
+	ld e,h
+	ld a,l
+	add a,h
+	ld l,a
+	ld h,WKBOARD>>8
+	ld a,(hl)
+	ld h,e
+	cp 0x80
+	jr z,JUMP
+	ld de,(SCANSQR)
+	jp NXTMRND
+JUMP:	call SQUAREVAL
+	sub d
+	jr NEWPRI
+	
+	;;    4ED1	END
+END:	
