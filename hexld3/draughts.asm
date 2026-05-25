@@ -61,16 +61,31 @@ SPRINT:	pop hl			; Retrieve address of next character
 	;; 		       		data). Entry point from BASIC.
 PBOARD: call SPRINT
 	
+;; INIT_BRD:
+;; 	db _SP,  _1,  _2,  _3,  _4,  _5,  _6,  _7,  _8, _CR
+;; 	db  _1, _SP, _WP, _SP, _WP, _SP, _WP, _SP, _WP,  _1, _CR
+;; 	db  _2, _WP, _SP, _WP, _SP, _WP, _SP, _WP, _SP,  _2, _CR
+;; 	db  _3, _SP, _WP, _SP, _WP, _SP, _WP, _SP, _WP,  _3, _CR
+;; 	db  _4, _SB, _SP, _SB, _SP, _SB, _SP, _SB, _SP,  _4, _CR
+;; 	db  _5, _SP, _SB, _SP, _SB, _SP, _SB, _SP, _SB,  _5, _CR
+;; 	db  _6, _BP, _SP, _BP, _SP, _BP, _SP, _BP, _SP,  _6, _CR
+;; 	db  _7, _SP, _BP, _SP, _BP, _SP, _BP, _SP, _BP,  _7, _CR
+;; 	db  _8, _BP, _SP, _BP, _SP, _BP, _SP, _BP, _SP,  _8, _CR
+;; 	db _SP,  _1,  _2,  _3,  _4,  _5,  _6,  _7,  _8, _CR
+;; 	db _CR, _CR, _CR
+;; 	db _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP
+;; 	db _SP, _SP, _SP, _SP, _SP, _SP
+;; 	db 0xFF
 INIT_BRD:
 	db _SP,  _1,  _2,  _3,  _4,  _5,  _6,  _7,  _8, _CR
-	db  _1, _SP, _WP, _SP, _WP, _SP, _WP, _SP, _WP,  _1, _CR
-	db  _2, _WP, _SP, _WP, _SP, _WP, _SP, _WP, _SP,  _2, _CR
-	db  _3, _SP, _WP, _SP, _WP, _SP, _WP, _SP, _WP,  _3, _CR
-	db  _4, _SB, _SP, _SB, _SP, _SB, _SP, _SB, _SP,  _4, _CR
-	db  _5, _SP, _SB, _SP, _SB, _SP, _SB, _SP, _SB,  _5, _CR
-	db  _6, _BP, _SP, _BP, _SP, _BP, _SP, _BP, _SP,  _6, _CR
-	db  _7, _SP, _BP, _SP, _BP, _SP, _BP, _SP, _BP,  _7, _CR
-	db  _8, _BP, _SP, _BP, _SP, _BP, _SP, _BP, _SP,  _8, _CR
+	db  _1, _SP, _SB, _SP, _SB, _SP, _SB, _SP, _WP,  _1, _CR
+	db  _2, _SB, _SP, _WP, _SP, _SB, _SP, _SB, _SP,  _2, _CR
+	db  _3, _SP, _SB, _SP, _SB, _SP, _SB, _SP, _SB,  _3, _CR
+	db  _4, _SB, _SP, _WP, _SP, _SB, _SP, _SB, _SP,  _4, _CR
+	db  _5, _SP, _SB, _SP, _BP, _SP, _SB, _SP, _SB,  _5, _CR
+	db  _6, _SB, _SP, _SB, _SP, _SB, _SP, _SB, _SP,  _6, _CR
+	db  _7, _SP, _SB, _SP, _SB, _SP, _SB, _SP, _SB,  _7, _CR
+	db  _8, _SB, _SP, _SB, _SP, _SB, _SP, _SB, _SP,  _8, _CR
 	db _SP,  _1,  _2,  _3,  _4,  _5,  _6,  _7,  _8, _CR
 	db _CR, _CR, _CR
 	db _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP
@@ -247,15 +262,20 @@ NOERROR1:
 	ld h,WKBOARD>>8
 	ld c,(hl)
 
+	;; Blank square
 	ld b,0x80
-	ld (hl),b
-LOOP:	ex (sp),hl
-	inc hl
+LOOP:	ld (hl),b
+	ex (sp),hl		; Put WKBOARD posn on stack and retrieve
+	inc hl 			; string location
 	ld (POINTER),hl
-	ld a,(hl)
+	ld a,(hl)		; Retrieve move command (A, B, C, or D)
+
+	;; Find corresponding move in TABLE
 	add a, 0x71
 	ld l,a
 	ld h, TABLE>>8
+
+	;; Retrieve direction and check if valid
 	ld d,(hl)
 	pop hl
 	ld a,b
@@ -265,27 +285,43 @@ LOOP:	ex (sp),hl
 	cp 0x27
 	jr nz, ERROR1
 
+	;; Find next square
 	ld a,l
 	add a,d
 	ld l,a
+
+	;; Retrieve contents and check if blank
 	ld a,(hl)
 	cp b
+
+	;; Skip forward if not
 	jr nz,NEXT
+
+	;; Check if single move, otherwise an error
 	ld a,e
 	inc a
 	jr z,CONTINUE
 	call ERROR
 	db _2
+
+	;; Counter in square to which we plan to move, so check is
+	;; opponent
 NEXT:	or b
 	cp 0xBC
 	jr z, NOERROR3
 ERROR3:	call ERROR
 	db _3
+
+	;; Have found an opponents counter
 NOERROR3:
-	ld (hl),b
+	ld (hl),b		; Blank it
+
+	;;  Move again (jumping counter)
 	ld a,l
 	add a,d
 	ld l,a
+
+	;; Check next square in blank. Otherwise can't jump
 CONTENT:
 	ld a,(hl)
 	cp b
@@ -304,14 +340,17 @@ CONTINUE:
 	db _4
 NOERROR4:
 	ld c,0x27
-NOKING:	ld (hl),c
-	push hl
-	ld hl,(POINTER)
+NOKING:	ld (hl),c		; Write counter to location
+	push hl			; Put WKBOARD position back on stack
+	ld hl,(POINTER)		; Retrieve string location
+
+	;; Check if move is complete
 	dec e
 	ld a,e
 	ex (sp),hl
-	rla
-	jr nc, LOOP
+	rla			; Effectively, does E contain 0xFF / 0xFE
+	jr nc, LOOP		; Repeat if not
+
 	pop hl
 	ld c,0xBC
 	call GAMEOVER
