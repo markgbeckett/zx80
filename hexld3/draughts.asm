@@ -552,7 +552,7 @@ ANYDIR:	cp 0x2E
 	pop bc
 
 	cp 0x80
-TEST:	jr nz,NXTMRND
+TEST:	jr nz,WHAT
 	ld (SCANSQR),de
 
 	call SQUAREVAL
