@@ -61,36 +61,36 @@ SPRINT:	pop hl			; Retrieve address of next character
 	;; 		       		data). Entry point from BASIC.
 PBOARD: call SPRINT
 	
-;; INIT_BRD:
-;; 	db _SP,  _1,  _2,  _3,  _4,  _5,  _6,  _7,  _8, _CR
-;; 	db  _1, _SP, _WP, _SP, _WP, _SP, _WP, _SP, _WP,  _1, _CR
-;; 	db  _2, _WP, _SP, _WP, _SP, _WP, _SP, _WP, _SP,  _2, _CR
-;; 	db  _3, _SP, _WP, _SP, _WP, _SP, _WP, _SP, _WP,  _3, _CR
-;; 	db  _4, _SB, _SP, _SB, _SP, _SB, _SP, _SB, _SP,  _4, _CR
-;; 	db  _5, _SP, _SB, _SP, _SB, _SP, _SB, _SP, _SB,  _5, _CR
-;; 	db  _6, _BP, _SP, _BP, _SP, _BP, _SP, _BP, _SP,  _6, _CR
-;; 	db  _7, _SP, _BP, _SP, _BP, _SP, _BP, _SP, _BP,  _7, _CR
-;; 	db  _8, _BP, _SP, _BP, _SP, _BP, _SP, _BP, _SP,  _8, _CR
-;; 	db _SP,  _1,  _2,  _3,  _4,  _5,  _6,  _7,  _8, _CR
-;; 	db _CR, _CR, _CR
-;; 	db _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP
-;; 	db _SP, _SP, _SP, _SP, _SP, _SP
-;; 	db 0xFF
 INIT_BRD:
 	db _SP,  _1,  _2,  _3,  _4,  _5,  _6,  _7,  _8, _CR
-	db  _1, _SP, _SB, _SP, _SB, _SP, _SB, _SP, _WP,  _1, _CR
-	db  _2, _SB, _SP, _WP, _SP, _SB, _SP, _SB, _SP,  _2, _CR
-	db  _3, _SP, _SB, _SP, _SB, _SP, _SB, _SP, _SB,  _3, _CR
-	db  _4, _SB, _SP, _WP, _SP, _SB, _SP, _SB, _SP,  _4, _CR
-	db  _5, _SP, _SB, _SP, _BP, _SP, _SB, _SP, _SB,  _5, _CR
-	db  _6, _SB, _SP, _SB, _SP, _SB, _SP, _SB, _SP,  _6, _CR
-	db  _7, _SP, _SB, _SP, _SB, _SP, _SB, _SP, _SB,  _7, _CR
-	db  _8, _SB, _SP, _SB, _SP, _SB, _SP, _SB, _SP,  _8, _CR
+	db  _1, _SP, _WP, _SP, _WP, _SP, _WP, _SP, _WP,  _1, _CR
+	db  _2, _WP, _SP, _WP, _SP, _WP, _SP, _WP, _SP,  _2, _CR
+	db  _3, _SP, _WP, _SP, _WP, _SP, _WP, _SP, _WP,  _3, _CR
+	db  _4, _SB, _SP, _SB, _SP, _SB, _SP, _SB, _SP,  _4, _CR
+	db  _5, _SP, _SB, _SP, _SB, _SP, _SB, _SP, _SB,  _5, _CR
+	db  _6, _BP, _SP, _BP, _SP, _BP, _SP, _BP, _SP,  _6, _CR
+	db  _7, _SP, _BP, _SP, _BP, _SP, _BP, _SP, _BP,  _7, _CR
+	db  _8, _BP, _SP, _BP, _SP, _BP, _SP, _BP, _SP,  _8, _CR
 	db _SP,  _1,  _2,  _3,  _4,  _5,  _6,  _7,  _8, _CR
 	db _CR, _CR, _CR
 	db _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP
 	db _SP, _SP, _SP, _SP, _SP, _SP
 	db 0xFF
+;; INIT_BRD:
+;; 	db _SP,  _1,  _2,  _3,  _4,  _5,  _6,  _7,  _8, _CR
+;; 	db  _1, _SP, _SB, _SP, _SB, _SP, _SB, _SP, _WP,  _1, _CR
+;; 	db  _2, _SB, _SP, _WP, _SP, _SB, _SP, _SB, _SP,  _2, _CR
+;; 	db  _3, _SP, _SB, _SP, _SB, _SP, _SB, _SP, _SB,  _3, _CR
+;; 	db  _4, _SB, _SP, _WP, _SP, _SB, _SP, _SB, _SP,  _4, _CR
+;; 	db  _5, _SP, _SB, _SP, _BP, _SP, _SB, _SP, _SB,  _5, _CR
+;; 	db  _6, _SB, _SP, _SB, _SP, _SB, _SP, _SB, _SP,  _6, _CR
+;; 	db  _7, _SP, _SB, _SP, _SB, _SP, _SB, _SP, _SB,  _7, _CR
+;; 	db  _8, _SB, _SP, _SB, _SP, _SB, _SP, _SB, _SP,  _8, _CR
+;; 	db _SP,  _1,  _2,  _3,  _4,  _5,  _6,  _7,  _8, _CR
+;; 	db _CR, _CR, _CR
+;; 	db _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP
+;; 	db _SP, _SP, _SP, _SP, _SP, _SP
+;; 	db 0xFF
 
 	ret
 	
@@ -226,8 +226,14 @@ WIPEOUT:
 
 ;; 4D09	4D67	MOVE		Intepret human player's move
 MOVE:	ld hl,(VARS)
-	inc hl
-	ld a,(hl)
+	call GET_STR_LEN
+	nop			; Padding, to keep 
+	;; inc hl
+	;; ld a,(hl)
+
+	;; Set A to FF for simple moves or moves-1 for complex
+	;; moves. Minimum string length (for simple move) is
+	;; 3. Multi-jump moves will be longer.
 	dec a
 	dec a
 	dec a
@@ -235,8 +241,8 @@ MOVE:	ld hl,(VARS)
 	cpl
 NOTZERO:
 	ld e,a
-	inc hl
-	inc hl
+	;; inc hl
+	;; inc hl
 	ld a,(hl)
 	ld b,a
 	add a,a
@@ -661,4 +667,33 @@ JUMP:	call SQUAREVAL
 	jr NEWPRI
 	
 	;;    4ED1	END
+
+	;; Compute length and starto of contents ZX80 string array
+	;;
+	;; On entry:
+	;;   HL - address of string variable
+	;;
+	;; On exit:
+	;;   HL - address of string body
+	;;   A - length of string
+GET_STR_LEN:
+	push bc			; Save registers
+	push hl			; Save address of start of string
+	
+	ld b,0xFF		; Assume zero-length string
+	ld a,_QUOTE		; A contains string terminator
+				; (indicates end of string)
+GSL_LOOP:
+	inc b			;
+	inc hl 			; Advance past variable name
+	cp (hl)
+	jr nz, GSL_LOOP
+
+	ld a,b			; Move length to A
+	pop hl			; Set HL to start of string body
+	inc hl
+
+	pop bc			; Restore BC
+
+	ret
 END:	
