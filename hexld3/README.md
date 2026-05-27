@@ -66,54 +66,9 @@ If you would like to see the disassembler source code, take a look at [https://g
 
 Have fun!
 
-## Demo -- Life
-
-The tape image [life.o](life.o) contains a ZX80 version of the program Life from Toni's book (see Chapter 12). To use the program, do the following:
-
-1. Open the tape archive file  [life.o](life.o) in your emulator.
-2. Type `LOAD` to load the program.
-3. Type `GOTO 500` to restore the machine code back into memory.
-4. Type `RUN 1000` to run the program. Between each iteration, the program will wait for keyboard input. Simply type Enter to run the next iteration.
-
-The program was assembled to address 0x4A00 in memory. You can see the extent of the program by typing `RUN 700` or list the program by typing `RUN 50` and setting the start address to (for example) 0x4A00. The listing is produced one screen at a time: enter `CONTINUE` to see subsequent screens.
-
-You will see, from Toni's book, that the program contains two routines and some program data. In this version, the START routines starts at 0x4A08 and the NEXGEN routine starts at 0x4A34.  
-
-Note: The Life demo was created with an earlier version of HEXLD3, before I enabled support for programs longer than 512 bytes. This is not an issue: the code for Life easily fits into 512 bytes, though could be an issue if you have ambitious plans to extend or enhance the program.
-
-## Demo N. 2 -- Draughts
-
-In the second half of the book, the reader progressively develops an implementation of the game Draughts (also, know as Checkers (US) or Dames (Fr)). Again, the book focused on the ZX81 implementation, with pointers for those using a ZX80 (4K BASIC) on how to adapt the program for that platform.
-
-I am in the process of creating the adaptation for 4K BASIC and have encountered some obstacles.
-
-Most obviously, the 4K BASIC version of HEXLD3 -- as provided by Toni -- only permits 512 bytes of object code, whereas the implementation of Draughts is closer to 1 kilobyte. This was the motivation for me updating HEXLD3 to remove this limitation.
-
-You can try the in-progress implementation using the following steps:
-
-1. Open the tape archive file  [draughts.o](draughts.o) in your emulator, or copy to your SD card (if using ZXpand).
-2. Type `LOAD` to load the program (or type `LOAD "DRAUGHTS"`, if using ZXpand).
-3. Type `GOTO 500` to restore the machine code back into memory.
-4. Type `RUN 8` to run the program.
-
-The game board is displayed in the top half of the screen and the player plays as Black.
-
-When you run the program, you will be prompted for a move. Each move is entered as a string starting with a two-digit coordinate (row followed by column) of the counter to move, followed by a sequence of one or more moves. The four possible directions are indicated by "A" (up and left), "B" (up and right), "C" (down and right), and "D" (down and left). You will automatically capture an opponent's piece if that is possible and, if capturing multiple counters is possible, you can enter a sequence of direction commands.
-
-For the 4K BASIC port, the move-entry procedure is complicated a little in that you have to prefix your move with a two-character code, to make the ZX80 BASIC string look like a ZX81 BASIC string (effectively, adding a string length value). For a one-step move, you prefix your move with <Shift+W> and <Space>. For a two-step move, you use <Shift+E> and <Space>, and so on.
-
-(Aside: The sequence <Shift+W> followed by <Space> stores the bytes 03 and 00 at the beginning of the string in memory, which is little Endian form of the number '3', which is the length of the remaining string.)
-
-Known issues:
-- The block size for various board-copy operations is too short, meaning the last couple of cells of the game board are lost. (FIXED)
-- Entering moves on the 4K BASIC version requires an odd two-character prefix. (TO FIX)
-- Game board is not updated with final move, at end game. (TO FIX)
-- Once you start the game, you cannot exit, except by resetting the machine. (TO FIX)
-
-
 ## Notes
 
-- You should save your work frequently as  HEXLD3 is unforgiving and has almost no error checking. Inputs are typically four-digit hex numbers for addresses, or sequences of one or more two-digit hex numbers for data. The validity of inputs is not checked: the code will naively convert your input into numerical data as best as it can.
+- You should save your work frequently as HEXLD3 is unforgiving and has almost no error checking. Inputs are typically four-digit hex numbers for addresses, or sequences of one or more two-digit hex numbers for data. The validity of inputs is not checked: the code will naively convert your input into numerical data as best as it can.
 - The program will stop if the cursor reaches the bottom of the screen; for example, when listing code or entering code. In some cases, `CONTINUE` (typed immediately after the stoppage) will allow you to continue. Alternatively, (for example, when entering code) re-run the correct part of the program and enter the next address at which code is to be inserted.
 - The user is responsible for memory management. You need to ensure you do not write code to somewhere you should not (e.g., inside the BASIC workspace) and, if you extend the BASIC program, that it does not grow to overlap with your machine code. As noted above, you should also leave sufficient space for the save function to create temporary arrays in the BASIC workspace.
 - Unlike for Toni's original version of the program, you do not need type `GOTO 500` when you load the program unless you have pre-existing machine code. Because HEXLD3 is stored in REM statements, it is immediately available for use.
@@ -138,3 +93,51 @@ A useful way to check the size of your `REM` statement is to define it as:
 ```REM 01234567890123456789...```
 
 --which should make it easier to check the length. You could also check the memory dump. Each REM statement starts with two bytes indicating the line number (in big-endian format) followed by the code for `REM`, which is 0xFE, followed by the data. Each BASIC line is terminated with code 0x76.
+
+## Demo -- Life
+
+The tape image [life.o](life.o) contains a ZX80 version of the program Life from Toni's book (see Chapter 12). To use the program, do the following:
+
+1. Open the tape archive file  [life.o](life.o) in your emulator.
+2. Type `LOAD` to load the program.
+3. Type `GOTO 500` to restore the machine code back into memory.
+4. Type `RUN 1000` to run the program. Between each iteration, the program will wait for keyboard input. Simply type Enter to run the next iteration.
+
+The program was assembled to address 0x4A00 in memory. You can see the extent of the program by typing `RUN 700` or list the program by typing `RUN 50` and setting the start address to (for example) 0x4A00. The listing is produced one screen at a time: enter `CONTINUE` to see subsequent screens.
+
+You will see, from Toni's book, that the program contains two routines and some program data. In this version, the START routines starts at 0x4A08 and the NEXGEN routine starts at 0x4A34.  
+
+Note: The Life demo was created with an earlier version of HEXLD3, before I enabled support for programs longer than 512 bytes. This is not an issue: the code for Life easily fits into 512 bytes, though could be an issue if you have ambitious plans to extend or enhance the program.
+
+## Demo N. 2 -- Draughts
+
+In the second half of the book, the reader progressively develops an implementation of the game Draughts (also, know as Checkers (US) or Dames (Fr)). Again, the book focused on the ZX81 implementation, with pointers for those using a ZX80 (4K BASIC) on how to adapt the program for that platform.
+
+I have worked through the development of the 4K-BASIC adaptation though encountered some obstacles along the way.
+
+Most significantly, the 4K BASIC version of HEXLD3 -- as provided by Toni -- only permits 512 bytes of object code, whereas the implementation of Draughts is closer to 1 kilobyte. This was the motivation for me updating HEXLD3 to remove this limitation (as described above).
+
+You can play the current 4K BASIC implementation using the following steps:
+
+1. Open the tape archive file  [draughts.o](draughts.o) in your emulator, or copy to your SD card (if using ZXpand).
+2. Type `LOAD` to load the program (or type `LOAD "DRAUGHTS"`, if using ZXpand).
+3. Type `GOTO 500` to restore the machine code back into memory.
+4. Type `RUN 8` to run the program.
+
+The game board is displayed in the top half of the screen and the player plays as Black.
+
+When you run the program, you will be prompted for a move. Each move is entered as a string starting with a two-digit coordinate (row followed by column) of the counter to move, followed by a sequence of one or more moves. The four possible directions are indicated by "A" (up and left), "B" (up and right), "C" (down and right), and "D" (down and left). You will automatically capture an opponent's piece if that is possible and, if capturing multiple counters is possible, you can enter a sequence of direction commands.
+
+As described in Toni's book, the 4K-BASIC port move entry is complicated a little in that you have to prefix your move with a two-character code, such as <Shift+W> and <Space> for a one-step move, to make the ZX80 BASIC string look like a ZX81 BASIC string (effectively, adding a string length value). I have eliminated this in the current version: that is you can type moves in the same way as you would on the ZX81.
+
+(Aside: The sequence <Shift+W> followed by <Space> stores the bytes 03 and 00 at the beginning of the string in memory, which is little Endian form of the number '3', which is the length of the remaining string.)
+
+I encountered a few bugs (some previously identified and fixed by Thunor and some new. The known issues (many fixed) are, as follows:
+
+- The block size for various board-copy operations is too short, meaning the last couple of cells of the game board are lost. (FIXED)
+- Entering moves on the 4K BASIC version requires an odd two-character prefix to mimic the counted-string syntax of ZX81 strings. (FIXED)
+- The game board is not updated when you play the final move, at end game. (TO FIX)
+- Once you start the game, you cannot exit, except by resetting the machine. (TO FIX)
+- When you make a move, the computer player responds immediately, making it more difficult to track what move they have made. (TO FIX)
+- When making a multi-step move (jumping over several counters),  player counters at left behind at intermediate squares in the move. (FIXED)
+
