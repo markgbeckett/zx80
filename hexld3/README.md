@@ -74,26 +74,6 @@ Have fun!
 - Unlike for Toni's original version of the program, you do not need type `GOTO 500` when you load the program unless you have pre-existing machine code. Because HEXLD3 is stored in REM statements, it is immediately available for use.
 - I have (so far) added two extra routines. You can see the location and extent of your machine code, using `RUN 700`. This should help you to keep track of memory usage. You can start a new project, using `RUN 800` and then enter the start address (that is, the origin or "org" address) for your new code. This will reset HEXLD3 variables, so it can no longer see any preexisting code you have written.
 
-# Building from source
-
-HEXLD3 is mostly written in Z80 machine code, with a BASIC wrapper. For the ZX80 (4K BASIC) version, the machine code is stored in four `REM` statements each containing space for 256 bytes of machine code. The data of these REM statements (where code can be inserted) is as follows::
-- Line 1 data 402B--412A (256 bytes)
-- Line 2 data 412F-- 422E (256 bytes)
-- Line 3 data 4233--4332 (256 bytes)
-- Line 4 data 4337--4436 (256 bytes)
-
-The machine code to go into these four REM statements is held in four source files, named "hexld3_line1.asm" and so on. These source files need to be assembled in sequence and the symbols table from assembling each file should be written to a corresponding file named "hexld3_line1_symbols.asm" and so on. A simple Makefile is provided to help you.
-
-Once assembled, you should have four binary files, named "hexld3_line1.bin" and so on. These can be inserted into the body of the corresponding `REM` statement using the memory-load function of an emulator such as [EightyOne](https://sourceforge.net/projects/eightyone-sinclair-emulator/) and specifying the start address as indicated above.
-
-If you make significant changes to the code of HEXLD3, you should check that each binary file is no more than 256 bytes. If necessary, you may need to create additional REM statements at line 5, line 6, ..., and line 9. The first actual BASIC command is at line 10.
-
-A useful way to check the size of your `REM` statement is to define it as:
-
-```REM 01234567890123456789...```
-
---which should make it easier to check the length. You could also check the memory dump. Each REM statement starts with two bytes indicating the line number (in big-endian format) followed by the code for `REM`, which is 0xFE, followed by the data. Each BASIC line is terminated with code 0x76.
-
 ## Demo -- Life
 
 The tape image [life.o](life.o) contains a ZX80 version of the program Life from Toni's book (see Chapter 12). To use the program, do the following:
@@ -141,3 +121,22 @@ I encountered a few bugs (some previously identified and fixed by Thunor and som
 - When you make a move, the computer player responds immediately, making it more difficult to track what move they have made. (TO FIX)
 - When making a multi-step move (jumping over several counters),  player counters at left behind at intermediate squares in the move. (FIXED)
 
+# Building from source
+
+HEXLD3 is mostly written in Z80 machine code, with a BASIC wrapper. For the ZX80 (4K BASIC) version, the machine code is stored in four `REM` statements each containing space for 256 bytes of machine code. The data of these REM statements (where code can be inserted) is as follows::
+- Line 1 data 402B--412A (256 bytes)
+- Line 2 data 412F-- 422E (256 bytes)
+- Line 3 data 4233--4332 (256 bytes)
+- Line 4 data 4337--4436 (256 bytes)
+
+The machine code to go into these four REM statements is held in four source files, named "hexld3_line1.asm" and so on. These source files need to be assembled in sequence and the symbols table from assembling each file should be written to a corresponding file named "hexld3_line1_symbols.asm" and so on. A simple Makefile is provided to help you.
+
+Once assembled, you should have four binary files, named "hexld3_line1.bin" and so on. These can be inserted into the body of the corresponding `REM` statement using the memory-load function of an emulator such as [EightyOne](https://sourceforge.net/projects/eightyone-sinclair-emulator/) and specifying the start address as indicated above.
+
+If you make significant changes to the code of HEXLD3, you should check that each binary file is no more than 256 bytes. If necessary, you may need to create additional REM statements at line 5, line 6, ..., and line 9. The first actual BASIC command is at line 10.
+
+A useful way to check the size of your `REM` statement is to define it as:
+
+```REM 01234567890123456789...```
+
+--which should make it easier to check the length. You could also check the memory dump. Each REM statement starts with two bytes indicating the line number (in big-endian format) followed by the code for `REM`, which is 0xFE, followed by the data. Each BASIC line is terminated with code 0x76.
