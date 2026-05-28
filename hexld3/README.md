@@ -114,7 +114,7 @@ As described in Toni's book, the 4K-BASIC port move entry is complicated a littl
 
 I encountered a few bugs (some previously identified and fixed by Thunor and some new. The known issues (many fixed) are, as follows:
 
-- The block size for various board-copy operations is too short, meaning the last couple of cells of the game board are lost. (FIXED)
+- The board-copy routine relies on C registering having a large value when routine is called. This is typically not the case on 4K BASIC though, provided you do not relocate the machine code, seems to be okay on 8K BASIC version. (FIXED)
 - Entering moves on the 4K BASIC version requires an odd two-character prefix to mimic the counted-string syntax of ZX81 strings. (FIXED)
 - The game board is not updated when you play the final move, at end game. (TO FIX)
 - Once you start the game, you cannot exit, except by resetting the machine. (TO FIX)
