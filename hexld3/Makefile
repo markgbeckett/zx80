@@ -13,5 +13,8 @@ all:
 	$(ASM) $(AFLAGS) -o hexld3_line3.bin hexld3_line3.asm > hexld3_line3_symbols.asm 2>&1
 	$(ASM) $(AFLAGS) -o hexld3_line4.bin hexld3_line4.asm > hexld3_line4_symbols.asm 2>&1
 
+draughts:
+	$(ASM) $(AFLAGS) -o draughts.bin draughts.asm > draughts_symbols.asm 2>&1
+	
 clean:
 	$(ERASE) $(OBJS)
