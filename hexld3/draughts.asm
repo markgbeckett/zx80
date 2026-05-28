@@ -193,7 +193,11 @@ BOARDCOPY:
 	ld de,0x000D		; Advance to start of (active) board 
 	add hl,de
 	ld de,WKBOARD
-	ld b,0x2C		; Length of active section of board
+
+	ld bc,0x2AFF		; Set B to number of cells to
+				; copy. Setting C ensures no unexpected
+				; change to iteration count for LDI
+				; below.
 NSCOPY:	ldi
 	inc hl			; Skip not-used squares
 	
@@ -434,7 +438,7 @@ BDPRINT:
 	add hl,de
 	ex de,hl
 	ld hl,WKBOARD
-	ld b,0x2C
+	ld b,0x2A
 LDI:	ldi
 	inc de
 	djnz LDI
