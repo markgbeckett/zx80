@@ -91,11 +91,26 @@ INIT_BRD:
 ;; 	db _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP
 ;; 	db _SP, _SP, _SP, _SP, _SP, _SP
 ;; 	db 0xFF
+;; INIT_BRD:
+;; 	db _SP,  _1,  _2,  _3,  _4,  _5,  _6,  _7,  _8, _CR
+;; 	db  _1, _SP, _SB, _SP, _SB, _SP, _SB, _SP, _SB,  _1, _CR
+;; 	db  _2, _SB, _SP, _WP, _SP, _SB, _SP, _WP, _SP,  _2, _CR
+;; 	db  _3, _SP, _SB, _SP, _SB, _SP, _WP, _SP, _SB,  _3, _CR
+;; 	db  _4, _SB, _SP, _WP, _SP, _SB, _SP, _SB, _SP,  _4, _CR
+;; 	db  _5, _SP, _SB, _SP, _BP, _SP, _SB, _SP, _SB,  _5, _CR
+;; 	db  _6, _SB, _SP, _SB, _SP, _SB, _SP, _SB, _SP,  _6, _CR
+;; 	db  _7, _SP, _SB, _SP, _SB, _SP, _SB, _SP, _SB,  _7, _CR
+;; 	db  _8, _SB, _SP, _SB, _SP, _SB, _SP, _SB, _SP,  _8, _CR
+;; 	db _SP,  _1,  _2,  _3,  _4,  _5,  _6,  _7,  _8, _CR
+;; 	db _CR, _CR, _CR
+;; 	db _SP, _SP, _SP, _SP, _SP, _SP, _SP, _SP
+;; 	db _SP, _SP, _SP, _SP, _SP, _SP
+;; 	db 0xFF
 
 	ret
 	
 	;; 4C97    4C9A    TABLE	Table of move directions
-TABLE:	db 0xFA, 0xFB, 0x06, 0x05 ; NE, NW, SW, SE
+TABLE:	db 0xFA, 0xFB, 0x06, 0x05, 0x00 ; NE, NW, SW, SE, <end>
 
 ;; 4C9B	4CBB	ERROR		Sub: Print error message (entry point at
 ;; 				4CA7) 
@@ -451,125 +466,291 @@ LDI:	ldi
 	;;                           |            |
 	;;                           |  human's   |
 	;;                           |   piece    |
-	;;      PROTECTING           |            |
-	;;                           |            |
+	;;      PROTECTING           |    --      |
+	;;                           |   HL+2C    |
 	;;              +------------+------------+            +------------+
 	;;              |            |                         |            |
 	;;              | computer's |                         |  human's   |
 	;;              |   piece    |                         |   piece    |
-	;;              |            |                         |            |
-	;;              |            |                         |            |
+	;;              |    --      |                         |    --      |
+	;;              |   HL+C     |                         |   HL+C     |
 	;; +------------+------------+            +------------+------------+
 	;; |   square   |                         |   square   |
 	;; |   being    |                         |   being    |
-	;; |   valued   |                         |   valued   |
+	;; |   scored	|                         |   scored   |
 	;; |     --     |                         |     --     |
-	;; |     us     |                         |     us     |
+	;; |     HL     |                         |     HL     |
 	;; +------------+            +------------+------------+
-	;;                           |            |
 	;;                           |            |
 	;;                           |   blank    |        IN DANGER
 	;;                           |   square   |
-	;;                           |            |
+	;;                           |     --     |
+	;;                           |    HL-C    |
 	;;                           +------------+
+	;;
+	;; During the routine, the registers are typically used for:
+	;;   B - form of testing (PROTECTING / IN DANGER )
+	;;   C - direction being considered
+	;;   DE - pointer into direction table
+	;;   HL - address in WKBOARD being considered
+SCORE:	dw 0x0000
 SQUAREVAL:
 	;; Save registers
 	push bc
 	push de
 	push hl
 
-	ld b,0x00		; Flag to dictate what is checked
-				; (0=protection; 1=danger)
+	;; Reset score
+	xor a
+	ld (SCORE),a
+	ld (SCORE+1),a
+	
+	;; Set testing mode
+	ld b,a			; (Recall A=0)
 
-STARTOFF:
-	ld de, TABLE		; DE points to directions table
+SVOLOOP:
+	;; Set start of table and store
+	ld de,TABLE
 
-	;; Retrieve next direction into C
-NOWT:	ld a,(de)
+SVILOOP:
+	;; Retrieve current direction into C
+	ld a,(de)
 	ld c,a
 
-	;; Check for end of table (fragile, as relies on knowing what
-	;; follows table)
-	sub 0x2E		
-	jr z, EXIT
+	;; Update direction index
+	inc de
 
-	inc e			; Advance pointer to next direction in
-				; table (why not inc DE?), for
-				; subsequent loop
-
-	;; Restore location of square being evaluated from stack
+	;; Retrieve location of cell being scored (do now as TOS)
 	pop hl
 	push hl
-	ld h, WKBOARD>>8	; Retrieve high-byte of workspace-board
-				; address
+	
+	;; Check for end of table (A=0x00)
+	and a
+	jr z,SVNEXT
 
-	;; Find next square in current direction (or next-but-one if
-	;; checking for protection)
-	ld a,l			; Requires accumulator
-	add a,c			; Add direction offset
-	bit 0,b			; Are we checking protection or danger
-	jr nz, LA		; Skip if checking for danger
-	add a,c			; Add direction offset again
-LA:	ld l,a			; HL points to new square
+	;; Move location (two squares for protecting or one for in-danger)
+	ld a,l
+	add a,c
 
-	;; Work out if protected/ protecting
-	ld a, %01111111		; 
-	or c			; Set Bit 7, if direction is 'up' board
-	and (hl)		; If player piece is normal and below or
-				; king and anywhere, will be "B" (0x27);
-				; otherwise, will be something else
+	bit 0,b
+	jr nz, SVCONT
+	add a,c
 
-	;; Move on if not an opportunity (B=0) / threat (B=1)
-	cp _B
-	jr nz, NOWT
+SVCONT:	ld l,a
+	ld h,WKBOARD>>8
 
-	;; Reverse back one square and retrieve square's contents
-	ld a,l			; 4E14
-	sub c
-	ld l,a
-	ld a,(hl)
+	;; 	ld a,(hl)
 
-	;; Check for player piece
-	scf
-	rla			; 9-bit rotation left
-	bit 0,b			;
-	jr nz, LB
-	cp 0x79			; If piece is a "B"
-	jr nz, NOWT
-	ld a,(hl)
-	rla			; Carry set for normal/ reset for king
+	;; Check if human player's piece
+	ld a, %01111111
+	or c			; A = $FF, if cell is in front of us or
+				; A=$7F, if not
+	and (hl)		; A=$27 if human-player counter that can
+				; move towards us
+	cp 0x27
 
+	jr nz, SVILOOP		; Repeat if not a human piece that is
+				; able to move towards us
 
-LB:	ccf
-	ld a, 0x81
-	rla
-	rla
-EXIT:	bit 0,b
-	jr nz, LC
-
-	inc b
-	ld h,a
-	ex (sp),hl
-
-	push hl
-	jr STARTOFF
-LC:	ld d,a
+	;; Retrace our steps one cell and check if a king in square (at
+	;; this point can be either computer or player)
 	ld a,l
 	sub c
 	ld l,a
+
+	;; Work out potential score
+	ld a,(hl)		; Computer piece = %?0111100
+	rla			; CF reset, if king (A=0x79 at this
+				; point, if computer piece)
+	push af
+	ccf			; Carry set for king
+	ld a,%10000001 		; A will contain 5 or 7
+	rla
+	rla
+	ld (SCORE+1),a
+	pop af
+	
+	bit 0,b
+	jr nz, SVDANGER
+
+	;; Check if computer piece (either king or normal), in which
+	;; case protecting
+SVPROTECT:	
+	cp 0x79
+	jr nz, SVILOOP		; Repeat, if not a computer piece
+
+	jr SVSCORE
+SVDANGER:
+	ld a,l			; Update location to cell behind counter
+	sub c
+	ld l,a
+
+	;; Check if blank, in which case in danger
 	ld a,(hl)
 	cp 0x80
-	jr z, NOWT
-	ld a,d
-	pop hl
-	pop de
+	jr nz, SVILOOP
 	
-	sub d
+SVSCORE:
+	;; Retrieve current score and adjustment
+	ld hl,(SCORE)
+	ld a,l
+	add a,h
+	ld (SCORE),a
 
+	;; Check if done
+SVNEXT:	bit 0,b
+	jr nz, SVDONE
+	inc b
+
+	jr SVOLOOP
+	
+SVDONE:	;; Retrieve score
+	ld a,(SCORE)
+	
+	;; Restore registers
+	pop hl
 	pop de
 	pop bc
 
+	;; Done
 	ret
+
+;; 	;; Save registers
+;; 	push bc
+;; 	push de
+;; 	push hl
+
+;; 	;; Signal checking for a computer player's piece protecting
+;; 	;; another of their pieces. On a second loop, B=1 and then we
+;; 	;; are checking if the computer's piece is in danger.
+;; 	ld b,0x00
+	
+;; STARTOFF:
+;; 	ld de, TABLE		; DE points to table of directions
+
+;; 	;; Retrieve next direction into C
+;; NOWT:	ld a,(de)
+;; 	ld c,a
+
+;; 	;; Check for end of table (fragile, as relies on knowing what
+;; 	;; follows table) and exit, if done
+;; 	sub 0x2E		; Ensures A=0, if exiting from this
+;; 	jr z, EXIT		; point
+
+;; 	inc e			; Advance pointer to next direction in
+;; 				; table (why not inc DE?), for
+;; 				; subsequent loop
+
+;; 	;; Restore location of square being scored (L) from stack
+;; 	pop hl
+;; 	push hl
+;; 	ld h, WKBOARD>>8	; Retrieve high-byte of workspace-board
+;; 				; address
+
+;; 	;; Find next square in current direction (or next-but-one if
+;; 	;; checking for protection)
+;; 	ld a,l			; Requires accumulator
+;; 	add a,c			; Add direction offset
+;; 	bit 0,b			; Are we checking protection or danger
+;; 	jr nz, LA		; Skip if checking for danger
+;; 	add a,c			; Add direction offset again
+;; LA:	ld l,a			; HL points to new square
+
+;; 	;; Check if new location contains a human player's piece
+;; 	ld a, %01111111		; 
+;; 	or c			; Set Bit 7, if direction is 'up' board
+;; 	and (hl)		; If player piece is normal and below or
+;; 				; king and anywhere, A will end up
+;; 				; containing "B" (0x27); otherwise, will
+;; 				; be something else
+
+;; 	;; Move on to next direction, if not a human player's piece, as
+;; 	;; not an example of protection/ danger
+;; 	cp _B
+;; 	jr nz, NOWT
+
+;; 	;; Reverse back one square and retrieve square's contents. If
+;; 	;; B=0, this will be next to square being scored or, if B=1,
+;; 	;; will be square being scored.
+;; 	ld a,l			; 4E14
+;; 	sub c
+;; 	ld l,a
+;; 	ld a,(hl)		; If computer piece, A=%?0111100
+
+;; 	;; If B=1, we know A contains a computer-player's piece. If B=0,
+;; 	;; we don't yet know.
+;; 	scf
+;; 	rla			; Carry set for normal piece or reset
+;; 				; for King and, if computer-player's
+;; 				; piece, then A=%01111001.
+;; 	;; If checking for danger, we know this is a computer piece, so
+;; 	;; move on
+;; 	bit 0,b			
+;; 	jr nz, LB
+
+;; 	;; Otherwise, check if computer piece (that is, A=$79)
+;; 	cp 0x79			
+;; 	jr nz, NOWT		; Not computer piece, so no protection
+;; 				; issue
+
+;; 	ld a,(hl)		; Re-read contents of cell (definitely,
+;; 				; know it is a computer piece)
+;; 	rla			; Carry set for normal/ reset for king
+
+;; 	;; At this point, we know the cell pointed to by HL contains a
+;; 	;; computer piece and carry indicates if a king (reset) or not
+;; 	;; (set)
+
+;; LB:	ccf			; Carry reset for normal/ set for king
+;; 	ld a, %10000001
+;; 	rla			; A = %0000001?
+;; 	rla			; A = %000001?1 (5=>normal/ 7=>king)
+
+;; 	;; Jump forward, if checking for danger (B=1)
+;; EXIT:	bit 0,b
+;; 	jr nz, LC
+
+;; 	;; Change to checking for danger
+;; 	inc b
+
+;; 	;; Insert score as 20S. Stack contains HL -> SCORE -> DE -> BC
+;; 	ld h,a
+;; 	ex (sp),hl		; Effectively, Forth `TUCK`
+;; 	push hl
+
+;; 	;; Repeat, checking for danger
+;; 	jr STARTOFF
+
+;; 	;; Arrive here, if checking for danger (B=1) and having found a
+;; 	;; potential danger or having completed scan of all directions
+;; LC:	ld d,a			; Store most recent score adjustment (0,
+;; 				; 5, or 7)
+;; 	ld a,l			; Check square behind square being evaluated
+;; 	sub c			; as, if empty, piece is in danger
+;; 	ld l,a
+
+;; 	;; Retrieve piece and check if blank (if not, safe, so check
+;; 	;; next direction)
+;; 	ld a,(hl)
+;; 	cp 0x80
+;; 	jr nz, NOWT
+
+;; 	;; Recover score into A
+;; 	ld a,d
+
+;; 	;; Restore HL
+;; 	pop hl
+
+;; 	;; Retrieve and update score *** This gives negative score ***
+;; 	pop de
+;; 	sub d
+
+;; 	;; Retrieve remaining registers
+;; 	pop de
+;; 	pop bc
+
+;; 	;; Done
+;; 	ret
 	
 ;; 4E43	4E9E	EVALUATE	Sub: Score possible computer move
 EVALUATE:
@@ -588,7 +769,7 @@ NXTDIR:	ld a,(de)
 	jr z,ANYDIR
 	bit 7,a
 	jr nz, NXTDIR
-ANYDIR:	cp 0x2E
+ANYDIR:	and a			; Check for end of table
 	jp z,KPCHKNG
 	push bc
 
