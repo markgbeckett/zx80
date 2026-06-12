@@ -93,11 +93,11 @@ INIT_BRD:
 ;; 	db 0xFF
 ;; INIT_BRD:
 ;; 	db _SP,  _1,  _2,  _3,  _4,  _5,  _6,  _7,  _8, _CR
-;; 	db  _1, _SP, _SB, _SP, _SB, _SP, _SB, _SP, _SB,  _1, _CR
-;; 	db  _2, _SB, _SP, _WP, _SP, _SB, _SP, _WP, _SP,  _2, _CR
-;; 	db  _3, _SP, _SB, _SP, _SB, _SP, _WP, _SP, _SB,  _3, _CR
-;; 	db  _4, _SB, _SP, _WP, _SP, _SB, _SP, _SB, _SP,  _4, _CR
-;; 	db  _5, _SP, _SB, _SP, _BP, _SP, _SB, _SP, _SB,  _5, _CR
+;; 	db  _1, _SP, _BK, _SP, _SB, _SP, _SB, _SP, _SB,  _1, _CR
+;; 	db  _2, _SB, _SP, _WK, _SP, _SB, _SP, _WP, _SP,  _2, _CR
+;; 	db  _3, _SP, _BP, _SP, _SB, _SP, _WK, _SP, _SB,  _3, _CR
+;; 	db  _4, _SB, _SP, _SB, _SP, _BP, _SP, _SB, _SP,  _4, _CR
+;; 	db  _5, _SP, _SB, _SP, _SB, _SP, _SB, _SP, _SB,  _5, _CR
 ;; 	db  _6, _SB, _SP, _SB, _SP, _SB, _SP, _SB, _SP,  _6, _CR
 ;; 	db  _7, _SP, _SB, _SP, _SB, _SP, _SB, _SP, _SB,  _7, _CR
 ;; 	db  _8, _SB, _SP, _SB, _SP, _SB, _SP, _SB, _SP,  _8, _CR
@@ -493,23 +493,37 @@ LDI:	ldi
 	;;   C - direction being considered
 	;;   DE - pointer into direction table
 	;;   HL - address in WKBOARD being considered
-SCORE:	dw 0x0000
+SCORE:	dw 0x0000		; Two, 8-bit words providing a
+				; place-holder for score assocated with
+				; a particular square and score
+				; adjustment for a particular check on a
+				; square.
+
+	;; Check computer-player piece at current square to see if it is
+	;; protecting another computer-player piece or is in danger.
+	;;
+	;; On entry:
+	;;   HL - location of piece
+	;;
+	;; On exit:
+	;;   A - +5/+7, if in danger; -5/-7, if protecting; 0, otherwise
 SQUAREVAL:
 	;; Save registers
 	push bc
 	push de
 	push hl
 
-	;; Reset score
+	;; Reset score and score adjustment
 	xor a
 	ld (SCORE),a
 	ld (SCORE+1),a
 	
-	;; Set testing mode
+	;; Set testing mode (B=0 means checking for protection; B=1
+	;; means checking for danger)
 	ld b,a			; (Recall A=0)
 
 SVOLOOP:
-	;; Set start of table and store
+	;; Set DE to point to start of table of move directions
 	ld de,TABLE
 
 SVILOOP:
@@ -520,11 +534,12 @@ SVILOOP:
 	;; Update direction index
 	inc de
 
-	;; Retrieve location of cell being scored (do now as TOS)
+	;; Retrieve location of cell being scored from TOS
 	pop hl
 	push hl
 	
-	;; Check for end of table (A=0x00)
+	;; Check for end of table (A=0x00) and advance to next check or
+	;; exit, if so
 	and a
 	jr z,SVNEXT
 
@@ -536,12 +551,12 @@ SVILOOP:
 	jr nz, SVCONT
 	add a,c
 
+	;; Update HL to point to neighbouring cell being considered
 SVCONT:	ld l,a
 	ld h,WKBOARD>>8
 
-	;; 	ld a,(hl)
-
-	;; Check if human player's piece
+	;; Check if human player's piece and if can move towards us
+	;; (either is a king or is ahead of us on board)
 	ld a, %01111111
 	or c			; A = $FF, if cell is in front of us or
 				; A=$7F, if not
@@ -549,50 +564,70 @@ SVCONT:	ld l,a
 				; move towards us
 	cp 0x27
 
-	jr nz, SVILOOP		; Repeat if not a human piece that is
-				; able to move towards us
+	jr nz, SVILOOP		; Try next direction, if not human
+				; player's piece
 
-	;; Retrace our steps one cell and check if a king in square (at
-	;; this point can be either computer or player)
+	;; Work out potential score for this check (based on whether
+	;; there is a computer-player king in previous cell): at this
+	;; point can be either computer or player.
 	ld a,l
 	sub c
 	ld l,a
 
 	;; Work out potential score
-	ld a,(hl)		; Computer piece = %?0111100
+	ld a,(hl)		; If computer piece, then A = %?0111100
+	
+	;; Compute score adjustment based on whether is king or not
+	scf
 	rla			; CF reset, if king (A=0x79 at this
 				; point, if computer piece)
-	push af
-	ccf			; Carry set for king
-	ld a,%10000001 		; A will contain 5 or 7
-	rla
-	rla
-	ld (SCORE+1),a
-	pop af
-	
-	bit 0,b
-	jr nz, SVDANGER
 
-	;; Check if computer piece (either king or normal), in which
-	;; case protecting
+	;; Save piece information and complete computation of potential
+	;; score adjustment
+	push af
+	
+	ccf			; Carry set if king, reset if not
+	ld a,%10000001 		
+	rla 			;  A = %0000001? (1)
+	rla 			;  A = %000001?1 (0)
+
+	;; A will contain 5 (normal) or 7 (king) at this point. Store as
+	;; adjustment
+	bit 0,b
+	jr nz,SVADJ
+	neg			; If protecting, reduce priority
+SVADJ:	ld (SCORE+1),a
+
+	pop af
+
+	;; Are we checking for protection or danger?
+	bit 0,b
+	jr nz, SVDANGER		; Jump if danger
+
+	;; Check if the candidate piece is a computer piece (either king
+	;; or normal), in which case protecting
 SVPROTECT:	
 	cp 0x79
-	jr nz, SVILOOP		; Repeat, if not a computer piece
+	jr nz, SVILOOP		; Next direction, if not a computer piece
 
-	jr SVSCORE
+	jr SVSCORE		; Are protecting, so discourage move
+
+	;; Check if cell behind current counter is free as, if not, no
+	;; (immediate) danger
 SVDANGER:
 	ld a,l			; Update location to cell behind counter
 	sub c
 	ld l,a
 
-	;; Check if blank, in which case in danger
+	;; Check if not blank, in which case not in danger
 	ld a,(hl)
 	cp 0x80
 	jr nz, SVILOOP
-	
+
+	;; Counter is either protecting another piece or is in danger
 SVSCORE:
-	;; Retrieve current score and adjustment
-	ld hl,(SCORE)
+	ld hl,(SCORE)		; L will contain current score and H
+				; will contain latest adjustment
 	ld a,l
 	add a,h
 	ld (SCORE),a
@@ -754,25 +789,31 @@ SVDONE:	;; Retrieve score
 	
 ;; 4E43	4E9E	EVALUATE	Sub: Score possible computer move
 EVALUATE:
+	;; Score current cell based on whether piece is protecting
+	;; another piece or is in danger.
 	call SQUAREVAL
 	add a, 0x80		; Normalise move score to 0x80
 	ld (INITIAL),a
-	
+
+	;; Look at potential moves
 	ld de, TABLE
-	ld c,l
+	ld c,l			; Save starting point
 NXTMRND:
 	ld l,c
 	ld h,WKBOARD>>8
 NXTDIR:	ld a,(de)
 	inc e
-	bit 7,(hl)
-	jr z,ANYDIR
+	bit 7,(hl)		; Is piece king or is move-direction
+	jr z,ANYDIR		; forward?
 	bit 7,a
 	jr nz, NXTDIR
 ANYDIR:	and a			; Check for end of table
 	jp z,KPCHKNG
+
 	push bc
 
+	;; Retrieve contents of cell in current direection, but preserve
+	;; location
 	ld b,a
 	add a,c
 	ld l,a
@@ -781,12 +822,33 @@ ANYDIR:	and a			; Check for end of table
 
 	pop bc
 
+	;; Is target cell blank?
 	cp 0x80
 TEST:	jr nz,WHAT
 	ld (SCANSQR),de
 
-	call SQUAREVAL
-
+	;; Temporary blank starting square
+	push hl
+	ld l,c
+	ld h,WKBOARD>>8
+	ld a,(hl)
+	ld (STORE),a
+	ld (hl),0x80
+	pop hl
+	
+	call SQUAREVAL 		; +ve value means square is bad
+		
+	;; Restore previous value
+	push af
+	push hl
+	ld l,c
+	ld h,WKBOARD>>8
+	ld a,(STORE)
+	ld (hl),a
+	pop hl
+	pop af
+	
+	;; Adjust score (by subtracting adjustment)
 NEWPRI:	ld d,a
 	ld a,(INITIAL)
 	sub d
@@ -830,12 +892,17 @@ WHAT:	ld (SCANSQR),de
 	jr z,FOUND
 	ld de,(SCANSQR)
 	jr NXTMRND
+	;; Have found a human player, so check if king or normal piece,
+	;; storing result in d (either 7 or 5)
 FOUND:	ld a,0x81
 	rl d
 	ccf
 	rla
 	rla
 	ld d,a
+
+	;; Advance to next square, to see if empty, as otherwise can't
+	;; jump
 	ld e,h
 	ld a,l
 	add a,h
@@ -843,12 +910,15 @@ FOUND:	ld a,0x81
 	ld h,WKBOARD>>8
 	ld a,(hl)
 	ld h,e
-	cp 0x80
+	cp 0x80 		; Check if empty
 	jr z,JUMP
 	ld de,(SCANSQR)
 	jp NXTMRND
-JUMP:	call SQUAREVAL
+	
+	;; Can jump but will be be in danger/ projecting someone. If so, adjust
+JUMP:	call SQUAREVAL 		; Positive means in danger
 	sub d
+	
 	jr NEWPRI
 	
 	;;    4ED1	END
@@ -881,4 +951,9 @@ GSL_LOOP:
 	pop bc			; Restore BC
 
 	ret
+
+STORE:	db 0x00
+
 END:	
+
+
